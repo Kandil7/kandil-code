@@ -305,10 +305,16 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ### Areas Needing Contributions
 - Additional language templates
-- New AI provider integrations  
+- New AI provider integrations
 - UI theme designs
 - Documentation improvements
 - Bug fixes and enhancements
+
+## Release Process
+
+For maintainers looking to create a new release, please follow the [Release Management Guide](docs/release_management.md).
+
+Releases are automated via GitHub Actions when a new tag is pushed in the format `v*`.
 
 ## License
 

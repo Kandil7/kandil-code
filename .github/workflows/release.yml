@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # For now we just build for the most common platforms, but we can add more later
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Build
+      run: cargo build --release --locked
+    
+    - name: Run tests
+      run: cargo test --release --locked
+    
+    - name: Package Binary
+      shell: bash
+      run: |
+        # Determine binary name from Cargo.toml
+        BINARY_NAME=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].targets[0].name')
+        RELEASE_NAME="${BINARY_NAME}-${{ matrix.os }}"
+        
+        # Create release directory
+        mkdir -p release
+        
+        # Copy binary to release directory with platform-specific naming
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          cp target/release/$BINARY_NAME.exe release/${BINARY_NAME}-windows-x86_64.exe
+        else
+          cp target/release/$BINARY_NAME release/${BINARY_NAME}-${{ matrix.os }}
+          # Make it executable
+          chmod +x release/${BINARY_NAME}-${{ matrix.os }}
+        fi
+    
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: release/*
+        draft: false
+        prerelease: false
