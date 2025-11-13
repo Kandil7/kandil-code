@@ -74,6 +74,11 @@ pub enum Commands {
         #[command(subcommand)]
         sub: ConfigSub 
     },
+    /// Local model management commands
+    LocalModel {
+        #[command(subcommand)]
+        sub: LocalModelSub,
+    },
 }
 
 #[derive(Subcommand)]
@@ -643,6 +648,31 @@ pub enum ConfigSub {
         /// Provider to show costs for (all if not specified)
         provider: Option<String>,
     },
+    /// Validate production configuration
+    Validate,
+}
+
+#[derive(Subcommand)]
+pub enum LocalModelSub {
+    /// List installed local models
+    List,
+    /// Pull a local model
+    Pull {
+        #[arg(value_parser)]
+        model: String,
+    },
+    /// Remove a local model
+    Remove {
+        #[arg(value_parser)]
+        model: String,
+    },
+    /// Use a local model and persist selection
+    Use {
+        #[arg(value_parser)]
+        model: String,
+    },
+    /// Show local model system status
+    Status,
 }
 
 pub async fn run(cli: Cli) -> Result<()> {
@@ -658,6 +688,7 @@ pub async fn run(cli: Cli) -> Result<()> {
         Some(Commands::SwitchModel { provider, model }) => switch_model(provider, model).await?,
         Some(Commands::Plugin { sub }) => handle_plugin(sub).await?,
         Some(Commands::Config { sub }) => handle_config(sub).await?,
+        Some(Commands::LocalModel { sub }) => handle_local_model(sub).await?,
         None => {
             println!("Kandil Code - Intelligent Development Platform");
             println!("Use --help for commands");
@@ -1239,14 +1270,18 @@ async fn handle_projects(sub: ProjectSub) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "tui")]
 async fn launch_tui() -> Result<()> {
-    // Ensure we have an active project before launching TUI
     let project_manager = ProjectManager::new()?;
     let _current_project = project_manager.ensure_active_project(None)?;
-    
     let mut app = crate::tui::StudioApp::new()?;
     app.run().await?;
     Ok(())
+}
+
+#[cfg(not(feature = "tui"))]
+async fn launch_tui() -> Result<()> {
+    Err(anyhow::anyhow!("TUI feature is not enabled in this build"))
 }
 
 async fn handle_refactor(sub: RefactorSub) -> Result<()> {
@@ -1377,6 +1412,74 @@ async fn handle_config(sub: ConfigSub) -> Result<()> {
                     println!("Cost tracking summary is not available in this context");
                     println!("Cost tracking is available when using AI features");
                 }
+            }
+        }
+        ConfigSub::Validate => {
+            let cfg = Config::load()?;
+            match cfg.validate_production().await {
+                Ok(()) => println!("Configuration validation: ok"),
+                Err(e) => {
+                    eprintln!("Configuration validation failed: {}", e);
+                    return Err(e);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
+    match sub {
+        LocalModelSub::List => {
+            match crate::utils::ollama::list_models().await {
+                Ok(models) => {
+                    if models.is_empty() {
+                        println!("No local models found");
+                    } else {
+                        println!("Local models:");
+                        for m in models { println!("  - {}", m); }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to list local models: {}", e);
+                }
+            }
+        }
+        LocalModelSub::Pull { model } => {
+            match crate::utils::ollama::pull_model(&model).await {
+                Ok(()) => println!("Pulled model: {}", model),
+                Err(e) => eprintln!("Failed to pull model {}: {}", model, e),
+            }
+        }
+        LocalModelSub::Remove { model } => {
+            match crate::utils::ollama::delete_model(&model).await {
+                Ok(()) => println!("Removed model: {}", model),
+                Err(e) => eprintln!("Failed to remove model {}: {}", model, e),
+            }
+        }
+        LocalModelSub::Use { model } => {
+            let mut cfg = Config::load()?;
+            cfg.ai_provider = "ollama".to_string();
+            cfg.ai_model = model.clone();
+            cfg.save()?;
+            println!("Using local model: {}", model);
+        }
+        LocalModelSub::Status => {
+            match crate::utils::ollama::is_available().await {
+                Ok(true) => {
+                    let cfg = Config::load()?;
+                    println!("Ollama available at http://localhost:11434");
+                    println!("Current selection: provider={}, model={}", cfg.ai_provider, cfg.ai_model);
+                    match crate::utils::ollama::list_models().await {
+                        Ok(models) => {
+                            let present = models.iter().any(|m| m == &cfg.ai_model);
+                            println!("Model installed: {}", if present { "yes" } else { "no" });
+                        }
+                        Err(_) => {}
+                    }
+                }
+                Ok(false) => println!("Ollama unavailable"),
+                Err(e) => eprintln!("Ollama status error: {}", e),
             }
         }
     }

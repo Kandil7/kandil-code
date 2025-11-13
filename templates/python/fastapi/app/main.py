@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import time
 
 app = FastAPI(title="{{project_name}}")
 
@@ -18,3 +19,13 @@ def read_item(item_id: int, q: str = None):
 @app.post("/items/")
 def create_item(item: Item):
     return item
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+@app.get("/readyz")
+def readyz():
+    start = time.time()
+    elapsed_ms = int((time.time() - start) * 1000)
+    return {"ready": True, "elapsed_ms": elapsed_ms}
