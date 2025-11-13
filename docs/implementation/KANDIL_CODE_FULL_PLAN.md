@@ -1,5 +1,19 @@
 # Kandil Code: Full Implementation Plan
 
+## Table of Contents
+- [Project Overview](#project-overview)
+- [Key Principles](#key-principles)
+- [Milestones](#milestones)
+- [Resources Needed](#resources-needed)
+- [Workflow](#workflow)
+- [Security Baseline](#security-baseline-new)
+- [Phases Summary](#phases-summary)
+- [Success Metrics](#success-metrics)
+- [Risks & Assumptions](#risks--assumptions)
+- [Dependencies](#dependencies)
+- [Next Steps](#next-steps)
+- [Implementation Phases](#implementation-phases)
+
 ## Project Overview
 **Kandil Code** is an intelligent development platform (CLI + TUI + Multi-Agent System) built in Rust, designed to transform ideas into integrated software projects. It supports multi-language projects, AI integration, requirements engineering, code generation, testing, deployment, and professional role simulations.
 
@@ -54,11 +68,22 @@
 | 12 | 2 weeks | v2.0 Release | Launch + maintenance |
 
 ### Success Metrics
-- **Technical**: 95% test coverage, &lt;2s response time
+- **Technical**: 95% test coverage, <2s response time
 - **Adoption**: 500+ GitHub stars in 3 months
-- **Quality**: Bug rate &lt;5%, NPS &gt;7/10
+- **Quality**: Bug rate <5%, NPS >7/10
 
 ---
+
+## Risks & Assumptions
+- Assumes availability of free-tier AI APIs and stable Rust toolchain.
+- Risk of provider rate limits; mitigated by caching and multi-provider fallback.
+- Security risks from secret handling; mitigated by keyring integration and audits.
+- Scope creep across phases; mitigated by phase gates and change control.
+
+## Dependencies
+- Phase sequencing: Each phase depends on the previous being ‘feature-complete’.
+- External services: Supabase, AI providers (Claude, Qwen, OpenAI), optional Ollama.
+- Tooling: GitHub Actions, Docker, local runtime support (Tokio, Ratatui).
 
 ## Next Steps
 1. Read Phase 0 thoroughly
@@ -67,3 +92,18 @@
 4. Reference individual phase files for implementation details
 
 For detailed implementation, see PHASE_X.md files.
+
+## Implementation Phases
+- [Phase 0: Foundation & Security](PHASE_0_SETUP.md)
+- [Phase 1: CLI & AI Adapters](PHASE_1_CLI_AI.md)
+- [Phase 2: Code Generation & Plugins](PHASE_2_TEMPLATES_PLUGINS.md)
+- [Phase 3: Terminal UI & Analysis](PHASE_3_TUI_CODE.md)
+- [Phase 4: Quality & Multi-Model](PHASE_4_REFACTOR_TESTS_MODELS.md)
+- [Phase 5: Project Management](PHASE_5_PROJECTS_CLOUD.md)
+- [Phase 6: Agent Framework](PHASE_6_REQUIREMENTS_DESIGN_AGENTS.md)
+- [Phase 7: Code Agents](PHASE_7_CODE_TEST_AGENTS_SIMULATIONS.md)
+- [Phase 8: Review & Deploy](PHASE_8_ADVANCED_AGENTS_REVIEW_DEPLOY.md)
+- [Phase 9: Tech Role Simulations](PHASE_9_SIM_TECH_ROLES.md)
+- [Phase 10: DevOps & Scrum](PHASE_10_OPS_COORD_SIMULATIONS.md)
+- [Phase 11: Polish & Features](PHASE_11_ADVANCED_POLISH.md)
+- [Phase 12: Launch & Maintenance](PHASE_12_V2_RELEASE.md)

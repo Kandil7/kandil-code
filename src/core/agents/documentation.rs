@@ -1,0 +1,450 @@
+//! Comprehensive Documentation Generator
+//! 
+//! Module for generating comprehensive project documentation
+
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentationGenerator {
+    pub project_info: ProjectInfo,
+    pub content_sections: Vec<DocumentationSection>,
+    pub assets: Vec<Asset>,
+    pub formats: Vec<OutputFormat>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectInfo {
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub authors: Vec<String>,
+    pub license: String,
+    pub repository: String,
+    pub homepage: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentationSection {
+    pub id: String,
+    pub title: String,
+    pub content: String,
+    pub level: u8, // 1-6, like HTML heading levels
+    pub parent_id: Option<String>,
+    pub children: Vec<String>,
+    pub tags: Vec<String>,
+    pub last_updated: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Asset {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub asset_type: AssetType,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AssetType {
+    Image,
+    Diagram,
+    CodeExample,
+    Video,
+    Audio,
+    Document,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum OutputFormat {
+    Markdown,
+    Html,
+    Pdf,
+    Confluence,
+    GitBook,
+    Docusaurus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocConfig {
+    pub title: String,
+    pub author: String,
+    pub version: String,
+    pub theme: String,
+    pub output_dir: String,
+    pub include_source_code: bool,
+    pub generate_api_docs: bool,
+    pub generate_architecture_docs: bool,
+    pub generate_deployment_docs: bool,
+    pub generate_testing_docs: bool,
+}
+
+impl DocumentationGenerator {
+    pub fn new(project_info: ProjectInfo) -> Self {
+        Self {
+            project_info,
+            content_sections: vec![],
+            assets: vec![],
+            formats: vec![OutputFormat::Markdown, OutputFormat::Html],
+        }
+    }
+
+    pub fn add_section(&mut self, section: DocumentationSection) {
+        self.content_sections.push(section);
+    }
+
+    pub fn add_asset(&mut self, asset: Asset) {
+        self.assets.push(asset);
+    }
+
+    pub fn generate_documentation(&self, config: &DocConfig) -> Result<()> {
+        // Create output directory
+        fs::create_dir_all(&config.output_dir)?;
+        
+        // Generate different formats based on config
+        for format in &self.formats {
+            match format {
+                OutputFormat::Markdown => self.generate_markdown(config)?,
+                OutputFormat::Html => self.generate_html(config)?,
+                OutputFormat::Pdf => self.generate_pdf(config)?,
+                OutputFormat::Confluence => self.generate_confluence(config)?,
+                OutputFormat::GitBook => self.generate_gitbook(config)?,
+                OutputFormat::Docusaurus => self.generate_docusaurus(config)?,
+            }
+        }
+        
+        Ok(())
+    }
+
+    fn generate_markdown(&self, config: &DocConfig) -> Result<()> {
+        let output_dir = Path::new(&config.output_dir).join("markdown");
+        fs::create_dir_all(&output_dir)?;
+        
+        // Generate README
+        let readme_content = self.create_readme();
+        fs::write(output_dir.join("README.md"), readme_content)?;
+        
+        // Generate detailed documentation
+        for section in &self.content_sections {
+            let file_name = format!("{}.md", section.id);
+            fs::write(output_dir.join(file_name), &section.content)?;
+        }
+        
+        // Generate SUMMARY/TOC
+        let toc_content = self.create_table_of_contents();
+        fs::write(output_dir.join("SUMMARY.md"), toc_content)?;
+        
+        Ok(())
+    }
+
+    fn generate_html(&self, config: &DocConfig) -> Result<()> {
+        let output_dir = Path::new(&config.output_dir).join("html");
+        fs::create_dir_all(&output_dir)?;
+        
+        // Generate main index.html
+        let html_content = self.create_html_document(config);
+        fs::write(output_dir.join("index.html"), html_content)?;
+        
+        // Generate individual pages for sections
+        for section in &self.content_sections {
+            let file_name = format!("{}.html", section.id);
+            let page_content = self.create_html_page(section, config);
+            fs::write(output_dir.join(file_name), page_content)?;
+        }
+        
+        // Generate assets
+        let assets_dir = output_dir.join("assets");
+        fs::create_dir_all(&assets_dir)?;
+        
+        // Copy assets
+        for asset in &self.assets {
+            // In a real implementation, this would copy the actual asset files
+            // For simulation, we'll just create placeholder files
+            let asset_path = assets_dir.join(&asset.name);
+            fs::write(asset_path, format!("Placeholder for asset: {}", asset.name))?;
+        }
+        
+        Ok(())
+    }
+
+    fn generate_pdf(&self, config: &DocConfig) -> Result<()> {
+        // In a real implementation, this would use a PDF generation library
+        // For now, we'll just indicate that PDF generation is possible
+        let output_dir = Path::new(&config.output_dir);
+        fs::write(output_dir.join("documentation.pdf"), "PDF documentation would be generated here")?;
+        
+        Ok(())
+    }
+
+    fn generate_confluence(&self, config: &DocConfig) -> Result<()> {
+        // Generate Confluence-compatible markup
+        let output_dir = Path::new(&config.output_dir).join("confluence");
+        fs::create_dir_all(&output_dir)?;
+        
+        for section in &self.content_sections {
+            let file_name = format!("{}.confluence", section.id);
+            let confluence_content = self.create_confluence_markup(section);
+            fs::write(output_dir.join(file_name), confluence_content)?;
+        }
+        
+        Ok(())
+    }
+
+    fn generate_gitbook(&self, config: &DocConfig) -> Result<()> {
+        let output_dir = Path::new(&config.output_dir).join("gitbook");
+        fs::create_dir_all(&output_dir)?;
+        
+        // Create GitBook-specific files
+        let book_json = format!(r#"{{
+  "title": "{}",
+  "description": "{}",
+  "author": "{}"
+}}"#, config.title, self.project_info.description, config.author);
+        
+        fs::write(output_dir.join("book.json"), book_json)?;
+        
+        // Generate SUMMARY.md for GitBook
+        let summary = self.create_gitbook_summary();
+        fs::write(output_dir.join("SUMMARY.md"), summary)?;
+        
+        // Generate chapters
+        for section in &self.content_sections {
+            let file_name = format!("{}/{}.md", "docs", section.id);
+            let chapter_dir = output_dir.join("docs");
+            fs::create_dir_all(&chapter_dir)?;
+            fs::write(output_dir.join(file_name), &section.content)?;
+        }
+        
+        Ok(())
+    }
+
+    fn generate_docusaurus(&self, config: &DocConfig) -> Result<()> {
+        let output_dir = Path::new(&config.output_dir).join("docusaurus");
+        fs::create_dir_all(&output_dir)?;
+        
+        // Create Docusaurus-specific directory structure
+        let docs_dir = output_dir.join("docs");
+        fs::create_dir_all(&docs_dir)?;
+        
+        // Create docusaurus config
+        let docusaurus_config = r#"module.exports = {
+  title: 'Documentation',
+  tagline: 'Kandil Code Documentation',
+  url: 'https://your-domain.com',
+  baseUrl: '/',
+  organizationName: 'kandil',
+  projectName: 'kandil-code',
+};"#;
+        
+        fs::write(output_dir.join("docusaurus.config.js"), docusaurus_config)?;
+        
+        // Generate docs
+        for section in &self.content_sections {
+            let file_name = format!("{}.mdx", section.id);
+            fs::write(docs_dir.join(file_name), &section.content)?;
+        }
+        
+        Ok(())
+    }
+
+    fn create_readme(&self) -> String {
+        format!(
+            r#"# {}
+
+{}
+
+## Table of Contents
+{}
+
+## Overview
+{}
+
+## Getting Started
+To get started with this project, follow these steps...
+
+## Features
+- Feature 1
+- Feature 2
+- Feature 3
+
+## Contributing
+See the contributing guide for more information.
+
+## License
+Licensed under the {} License.
+
+## Authors
+{}
+"#,
+            self.project_info.name,
+            self.project_info.description,
+            self.create_simple_toc(),
+            self.project_info.description,
+            self.project_info.license,
+            self.project_info.authors.join(", ")
+        )
+    }
+
+    fn create_simple_toc(&self) -> String {
+        self.content_sections.iter()
+            .map(|section| format!("- [{}](#{})", section.title, section.id))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn create_table_of_contents(&self) -> String {
+        let mut toc = String::from("# Table of Contents\n\n");
+        
+        for section in &self.content_sections {
+            let indent = "  ".repeat((section.level - 1) as usize);
+            toc.push_str(&format!("{}- [{}](#{})\n", indent, section.title, section.id));
+        }
+        
+        toc
+    }
+
+    fn create_html_document(&self, config: &DocConfig) -> String {
+        format!(
+            r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>{}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>{}</h1>
+        <p>{}</p>
+    </header>
+    
+    <nav>
+        <ul>
+            {}
+        </ul>
+    </nav>
+    
+    <main>
+        {}
+    </main>
+    
+    <footer>
+        <p>Documentation for {} v{} | Generated on {}</p>
+    </footer>
+</body>
+</html>"#,
+            config.title,
+            config.title,
+            self.project_info.description,
+            self.create_nav_links(),
+            self.create_main_content(),
+            self.project_info.name,
+            self.project_info.version,
+            chrono::Utc::now().format("%Y-%m-%d")
+        )
+    }
+
+    fn create_html_page(&self, section: &DocumentationSection, config: &DocConfig) -> String {
+        format!(
+            r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>{} - {}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>{}</h1>
+    </header>
+    
+    <nav>
+        <a href="index.html">Back to Documentation</a>
+    </nav>
+    
+    <main>
+        <h{}>{}</h{}>
+        {}
+    </main>
+    
+    <footer>
+        <p>Documentation for {} v{} | Generated on {}</p>
+    </footer>
+</body>
+</html>"#,
+            section.title,
+            config.title,
+            config.title,
+            section.level,
+            section.title,
+            section.level,
+            section.content,
+            self.project_info.name,
+            self.project_info.version,
+            chrono::Utc::now().format("%Y-%m-%d")
+        )
+    }
+
+    fn create_nav_links(&self) -> String {
+        self.content_sections.iter()
+            .map(|section| format!(r#"<li><a href="#{}">{}</a></li>"#, section.id, section.title))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn create_main_content(&self) -> String {
+        self.content_sections.iter()
+            .map(|section| format!("<section id=\"{}\"><h{}>{}</h{}><p>{}</p></section>", 
+                section.id, 
+                section.level, 
+                section.title, 
+                section.level, 
+                section.content))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn create_confluence_markup(&self, section: &DocumentationSection) -> String {
+        format!(
+            r#"h{}. {}
+
+{}
+
+{}"#,
+            section.level,
+            section.title,
+            section.content,
+            self.create_confluence_metadata()
+        )
+    }
+
+    fn create_confluence_metadata(&self) -> String {
+        format!(
+            r#"<!-- 
+  Title: {}
+  Version: {}
+  Author: {}
+  Generated: {}
+--> "#,
+            self.project_info.name,
+            self.project_info.version,
+            self.project_info.authors.join(", "),
+            chrono::Utc::now().format("%Y-%m-%d")
+        )
+    }
+
+    fn create_gitbook_summary(&self) -> String {
+        let mut summary = String::from("# Summary\n\n");
+        
+        for section in &self.content_sections {
+            summary.push_str(&format!("- [{}]({}.md)\n", section.title, section.id));
+        }
+        
+        summary
+    }
+}

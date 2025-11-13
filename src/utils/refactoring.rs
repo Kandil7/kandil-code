@@ -1,0 +1,112 @@
+//! Code refactoring utilities
+//! 
+//! Contains functionality for code refactoring with preview/apply workflow
+
+use anyhow::Result;
+use std::path::Path;
+
+#[derive(Debug, Clone)]
+pub struct RefactorOperation {
+    pub file_path: String,
+    pub original_code: String,
+    pub refactored_code: String,
+    pub operation_type: String, // e.g., "rename_variable", "extract_function", etc.
+    pub description: String,
+}
+
+pub struct RefactorEngine {
+    operations: Vec<RefactorOperation>,
+}
+
+impl RefactorEngine {
+    pub fn new() -> Self {
+        Self {
+            operations: Vec::new(),
+        }
+    }
+
+    pub fn preview_refactor(&mut self, file_path: &str, refactor_type: &str, params: &RefactorParams) -> Result<String> {
+        let original_code = std::fs::read_to_string(file_path)?;
+        
+        // Apply the refactoring transformation
+        let refactored_code = self.apply_refactor(&original_code, refactor_type, params)?;
+        
+        // Store the operation for potential application
+        let operation = RefactorOperation {
+            file_path: file_path.to_string(),
+            original_code: original_code.clone(),
+            refactored_code: refactored_code.clone(),
+            operation_type: refactor_type.to_string(),
+            description: format!("{} operation on {}", refactor_type, file_path),
+        };
+        
+        self.operations.push(operation);
+        
+        Ok(refactored_code)
+    }
+
+    fn apply_refactor(&self, code: &str, refactor_type: &str, params: &RefactorParams) -> Result<String> {
+        match refactor_type {
+            "rename_variable" => self.rename_variable(code, params),
+            "extract_function" => self.extract_function(code, params),
+            "rename_function" => self.rename_function(code, params),
+            _ => Ok(code.to_string()), // For unknown refactor types, return original
+        }
+    }
+
+    fn rename_variable(&self, code: &str, params: &RefactorParams) -> Result<String> {
+        // This is a simplified implementation
+        // In a real implementation, we'd use Tree-sitter to parse and rename variables safely
+        if let (Some(old_name), Some(new_name)) = (&params.old_name, &params.new_name) {
+            Ok(code.replace(old_name, new_name))
+        } else {
+            Ok(code.to_string())
+        }
+    }
+
+    fn rename_function(&self, code: &str, params: &RefactorParams) -> Result<String> {
+        // This is a simplified implementation
+        // In a real implementation, we'd use Tree-sitter to parse and rename functions safely
+        if let (Some(old_name), Some(new_name)) = (&params.old_name, &params.new_name) {
+            Ok(code.replace(&format!("fn {}(", old_name), &format!("fn {}(", new_name)))
+        } else {
+            Ok(code.to_string())
+        }
+    }
+
+    fn extract_function(&self, code: &str, _params: &RefactorParams) -> Result<String> {
+        // This is a simplified implementation
+        // In a real implementation, we'd use Tree-sitter to extract code into a new function
+        Ok(code.to_string())
+    }
+
+    pub fn get_pending_operations(&self) -> &Vec<RefactorOperation> {
+        &self.operations
+    }
+
+    pub fn apply_pending_operations(&mut self) -> Result<()> {
+        for operation in &self.operations {
+            std::fs::write(&operation.file_path, &operation.refactored_code)?;
+        }
+        self.operations.clear();
+        Ok(())
+    }
+
+    pub fn cancel_pending_operations(&mut self) {
+        self.operations.clear();
+    }
+
+    pub fn get_operation_preview(&self, index: usize) -> Option<&RefactorOperation> {
+        self.operations.get(index)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RefactorParams {
+    pub old_name: Option<String>,
+    pub new_name: Option<String>,
+    pub start_line: Option<usize>,
+    pub end_line: Option<usize>,
+    pub function_name: Option<String>,
+    pub visibility: Option<String>,
+}
