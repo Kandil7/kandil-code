@@ -104,7 +104,7 @@ pub struct DesignAgent {
 }
 
 impl DesignAgent {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self { ai }
     }
 
