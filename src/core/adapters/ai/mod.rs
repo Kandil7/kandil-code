@@ -1,5 +1,5 @@
 //! AI adapter implementations
-//! 
+//!
 //! Contains unified interface for different AI providers (Ollama, Claude, Qwen, OpenAI)
 //! This will be expanded in Phase 1: Core CLI & AI Adapter
 
@@ -7,6 +7,7 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use crate::utils::config::SecureKey;
+use crate::core::context_manager::ContextManager;
 
 pub mod factory;
 pub mod tracked;
@@ -28,6 +29,8 @@ pub struct KandilAI {
     #[serde(skip)]
     client: Arc<Client>,
     base_url: String,
+    /// Flag indicating if we should use hybrid (local fallback) mode
+    use_hybrid_mode: bool,
 }
 
 impl KandilAI {
@@ -52,6 +55,7 @@ impl KandilAI {
             model,
             client: Arc::new(Client::new()),
             base_url,
+            use_hybrid_mode: true, // Default to hybrid mode
         })
     }
 
@@ -61,12 +65,55 @@ impl KandilAI {
     }
 
     pub async fn chat(&self, message: &str) -> Result<String> {
+        // For short/simple queries, try local model first
+        if self.use_hybrid_mode && message.len() < 5000 && matches!(self.provider, AIProvider::Claude | AIProvider::OpenAI | AIProvider::Qwen) {
+            // Try to use local model as fallback
+            if let Ok(local_result) = self.ollama_chat(message).await {
+                // Add a note about the local model being used
+                return Ok(format!("(Local Model Response) {}", local_result));
+            }
+        }
+
+        // Use the configured provider
         match &self.provider {
             AIProvider::Ollama => self.ollama_chat(message).await,
             AIProvider::Claude => self.claude_chat(message).await,
             AIProvider::Qwen => self.qwen_chat(message).await,
             AIProvider::OpenAI => self.openai_chat(message).await,
         }
+    }
+
+    /// Enhanced chat with context management
+    pub async fn chat_with_context(&self, message: &str, workspace_path: Option<&str>) -> Result<String> {
+        let enhanced_message = if let Some(path) = workspace_path {
+            // Prepare context using the context manager
+            if let Ok(context_manager) = ContextManager::new() {
+                if let Ok(context) = context_manager.prepare_context(message, path) {
+                    // Build enhanced prompt with relevant context
+                    let mut enhanced_prompt = format!("Context from your project:\n");
+
+                    for file in context.files.iter().take(5) { // Take top 5 most relevant files
+                        enhanced_prompt.push_str(&format!("\nFile: {}\nContent: {}\n",
+                            file.path,
+                            file.content.chars().take(1000).collect::<String>() // Limit file content
+                        ));
+                    }
+
+                    enhanced_prompt.push_str(&format!("\nUser Query: {}", message));
+                    enhanced_prompt
+                } else {
+                    // If context preparation failed, use original message
+                    message.to_string()
+                }
+            } else {
+                // If context manager creation failed, use original message
+                message.to_string()
+            }
+        } else {
+            message.to_string()
+        };
+
+        self.chat(&enhanced_message).await
     }
 
     async fn ollama_chat(&self, message: &str) -> Result<String> {
@@ -110,7 +157,7 @@ impl KandilAI {
     async fn claude_chat(&self, message: &str) -> Result<String> {
         let api_key = SecureKey::load("claude")?.expose().to_string();
         crate::utils::rate_limit::check_limit(&api_key)?;
-        
+
         #[derive(Serialize)]
         struct ClaudeRequest {
             model: String,
@@ -155,7 +202,7 @@ impl KandilAI {
     async fn qwen_chat(&self, message: &str) -> Result<String> {
         let api_key = SecureKey::load("qwen")?.expose().to_string();
         crate::utils::rate_limit::check_limit(&api_key)?;
-        
+
         #[derive(Serialize)]
         struct QwenRequest {
             model: String,
@@ -219,7 +266,7 @@ impl KandilAI {
     async fn openai_chat(&self, message: &str) -> Result<String> {
         let api_key = SecureKey::load("openai")?.expose().to_string();
         crate::utils::rate_limit::check_limit(&api_key)?;
-        
+
         #[derive(Serialize)]
         struct OpenAIRequest {
             model: String,
@@ -273,12 +320,12 @@ impl KandilAI {
 
         if response.status().is_success() {
             let result: OpenAIResponse = response.json().await?;
-            
+
             // If we got usage information, we could track the cost here
             if let Some(usage) = result.usage {
                 // In a real implementation, we would track the actual token usage
             }
-            
+
             if let Some(choice) = result.choices.first() {
                 Ok(choice.message.content.trim().to_string())
             } else {
