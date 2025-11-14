@@ -3,7 +3,6 @@
 //! Handles project creation, switching, and session management
 
 use anyhow::Result;
-use std::path::Path;
 use crate::utils::db::{Database, Project};
 use dirs::data_dir;
 use uuid::Uuid;

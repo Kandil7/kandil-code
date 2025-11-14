@@ -3,7 +3,6 @@
 //! Contains functionality for code refactoring with preview/apply workflow
 
 use anyhow::Result;
-use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct RefactorOperation {

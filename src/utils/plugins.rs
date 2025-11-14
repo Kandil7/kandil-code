@@ -54,4 +54,3 @@ impl PluginManager {
     }
 }
 
-pub use PluginManager as PluginMgr;

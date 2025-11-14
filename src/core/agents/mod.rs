@@ -31,7 +31,6 @@ pub mod release_manager;
 pub mod quality_assurance;
 pub mod maintenance;
 
-pub use base::{Agent, AgentState, AgentResult, ReActLoop};
 pub use requirements::RequirementsAgent;
 pub use design::DesignAgent;
 pub use code::CodeAgent;
@@ -51,10 +50,3 @@ pub use i18n::I18nAssistant;
 pub use a11y::A11yAssistant;
 pub use collaboration_realtime::RealTimeCollaboration;
 pub use ide_extension::IdeExtension;
-pub use green_dev::GreenDevAgent;
-pub use enhanced_a11y::{EnhancedA11yAssistant, RtlSupportAssistant};
-pub use marketplace::{Marketplace, ThemeManager};
-pub use documentation::DocumentationGenerator;
-pub use release_manager::ReleaseManager;
-pub use quality_assurance::QualityAssuranceSystem;
-pub use maintenance::MaintenanceManager;

@@ -2,7 +2,6 @@
 //! 
 //! Tracks API usage and costs for different AI providers
 
-use std::collections::HashMap;
 use dashmap::DashMap;
 
 #[derive(Debug, Clone)]

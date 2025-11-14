@@ -180,4 +180,3 @@ impl TemplateEngine {
     }
 }
 
-pub use TemplateEngine as TemplateMgr;

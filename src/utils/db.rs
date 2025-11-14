@@ -7,9 +7,7 @@ use rusqlite::{Connection, params};
 use rusqlite_migration::{Migrations, M};
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct Project {

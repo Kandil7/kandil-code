@@ -110,6 +110,11 @@ pub enum AgentSub {
         #[command(subcommand)]
         sub: TestSubCommand,
     },
+    /// Generate documentation
+    Documentation {
+        #[command(subcommand)]
+        sub: DocumentationSubCommand,
+    },
     /// Professional role simulations
     Simulate {
         #[command(subcommand)]
@@ -129,6 +134,14 @@ pub enum AgentSub {
     AdvancedFeatures {
         #[command(subcommand)]
         sub: AdvancedFeaturesSubCommand,
+    },
+}
+
+pub enum DocumentationSubCommand {
+    /// Generate documentation for a project
+    Generate {
+        /// Path to the project to document
+        path: String,
     },
 }
 

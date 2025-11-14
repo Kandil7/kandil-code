@@ -6,7 +6,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState, ReActLoop};
+use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,7 +104,7 @@ impl I18nAssistant {
         let mut completeness = HashMap::new();
         let mut quality_scores = HashMap::new();
         let mut missing_translations = HashMap::new();
-        let mut consistency_issues = vec![];
+        let consistency_issues = vec![];
         
         // In a real implementation, this would scan all translation files
         // For simulation, we'll return basic data

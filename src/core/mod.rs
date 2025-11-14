@@ -6,4 +6,3 @@
 pub mod adapters;
 pub mod agents;
 
-pub use adapters::ai::KandilAI;

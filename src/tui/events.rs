@@ -2,7 +2,7 @@
 //! 
 //! Contains keyboard, mouse, and application events
 
-use crossterm::event::{self, Event as CEvent, KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use crossterm::event::{self, Event as CEvent, KeyEvent, MouseEvent};
 use std::time::Duration;
 use anyhow::Result;
 
