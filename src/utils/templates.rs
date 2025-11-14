@@ -14,16 +14,32 @@ pub struct TemplateEngine {
 
 #[derive(Debug, Clone)]
 pub struct Template {
-    pub name: String,
-    pub description: String,
+    name: String,
+    description: String,
     pub files: Vec<TemplateFile>,
+}
+
+impl Template {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn description(&self) -> &str {
+        &self.description
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct TemplateFile {
     pub path: String,
     pub content: String,
-    pub is_executable: bool,
+    is_executable: bool,
+}
+
+impl TemplateFile {
+    pub fn is_executable(&self) -> bool {
+        self.is_executable
+    }
 }
 
 impl TemplateEngine {
@@ -51,12 +67,12 @@ impl TemplateEngine {
             files: vec![
                 TemplateFile {
                     path: "pubspec.yaml".to_string(),
-                    content: include_str!("../../../templates/flutter/clean_arch/pubspec.yaml").to_string(),
+                    content: include_str!("../../templates/flutter/clean_arch/pubspec.yaml").to_string(),
                     is_executable: false,
                 },
                 TemplateFile {
                     path: "lib/main.dart".to_string(),
-                    content: include_str!("../../../templates/flutter/clean_arch/lib/main.dart").to_string(),
+                    content: include_str!("../../templates/flutter/clean_arch/lib/main.dart").to_string(),
                     is_executable: false,
                 },
             ],
@@ -71,12 +87,12 @@ impl TemplateEngine {
             files: vec![
                 TemplateFile {
                     path: "requirements.txt".to_string(),
-                    content: include_str!("../../../templates/python/fastapi/requirements.txt").to_string(),
+                    content: include_str!("../../templates/python/fastapi/requirements.txt").to_string(),
                     is_executable: false,
                 },
                 TemplateFile {
                     path: "app/main.py".to_string(),
-                    content: include_str!("../../../templates/python/fastapi/app/main.py").to_string(),
+                    content: include_str!("../../templates/python/fastapi/app/main.py").to_string(),
                     is_executable: false,
                 },
             ],
@@ -91,12 +107,12 @@ impl TemplateEngine {
             files: vec![
                 TemplateFile {
                     path: "package.json".to_string(),
-                    content: include_str!("../../../templates/js/nextjs/package.json").to_string(),
+                    content: include_str!("../../templates/js/nextjs/package.json").to_string(),
                     is_executable: false,
                 },
                 TemplateFile {
                     path: "pages/index.js".to_string(),
-                    content: include_str!("../../../templates/js/nextjs/pages/index.js").to_string(),
+                    content: include_str!("../../templates/js/nextjs/pages/index.js").to_string(),
                     is_executable: false,
                 },
             ],
@@ -111,12 +127,12 @@ impl TemplateEngine {
             files: vec![
                 TemplateFile {
                     path: "Cargo.toml".to_string(),
-                    content: include_str!("../../../templates/rust/cli/Cargo.toml").to_string(),
+                    content: include_str!("../../templates/rust/cli/Cargo.toml").to_string(),
                     is_executable: false,
                 },
                 TemplateFile {
                     path: "src/main.rs".to_string(),
-                    content: include_str!("../../../templates/rust/cli/src/main.rs").to_string(),
+                    content: include_str!("../../templates/rust/cli/src/main.rs").to_string(),
                     is_executable: false,
                 },
             ],
@@ -127,7 +143,7 @@ impl TemplateEngine {
     pub fn list_templates(&self) -> Vec<(&String, &str)> {
         self.templates
             .iter()
-            .map(|(name, template)| (name, template.description.as_str()))
+            .map(|(name, template)| (name, template.description()))
             .collect()
     }
 

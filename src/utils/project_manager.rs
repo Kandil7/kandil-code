@@ -81,8 +81,8 @@ impl ProjectManager {
         }
 
         // If no project exists, create a default one
-        let path = project_path
-            .unwrap_or(&std::env::current_dir()?.to_string_lossy().to_string());
+        let current_dir_str = std::env::current_dir()?.to_string_lossy().to_string();
+        let path = project_path.unwrap_or(&current_dir_str);
             
         self.create_project(
             &format!("Project_{}", Utc::now().format("%Y%m%d_%H%M%S")),
