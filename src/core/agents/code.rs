@@ -9,6 +9,7 @@ use std::path::Path;
 use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use crate::core::adapters::ai::KandilAI;
 use crate::utils::templates::TemplateEngine;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodeOutput {
@@ -25,12 +26,12 @@ pub struct CodeFile {
 }
 
 pub struct CodeAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     template_engine: TemplateEngine,
 }
 
 impl CodeAgent {
-    pub fn new(ai: KandilAI) -> Result<Self> {
+    pub fn new(ai: Arc<KandilAI>) -> Result<Self> {
         Ok(Self {
             ai,
             template_engine: TemplateEngine::new(),
