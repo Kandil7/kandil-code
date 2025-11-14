@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesignDocument {
@@ -99,7 +100,7 @@ pub enum DiagramType {
 }
 
 pub struct DesignAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
 }
 
 impl DesignAgent {
