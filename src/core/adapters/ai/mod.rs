@@ -100,8 +100,8 @@ impl KandilAI {
     }
 
     async fn claude_chat(&self, message: &str) -> Result<String> {
-        // Retrieve API key securely
         let api_key = SecureKey::load("claude")?.expose().to_string();
+        crate::utils::rate_limit::check_limit(&api_key)?;
         
         #[derive(Serialize)]
         struct ClaudeRequest {
@@ -144,8 +144,8 @@ impl KandilAI {
     }
 
     async fn qwen_chat(&self, message: &str) -> Result<String> {
-        // Retrieve API key securely
         let api_key = SecureKey::load("qwen")?.expose().to_string();
+        crate::utils::rate_limit::check_limit(&api_key)?;
         
         #[derive(Serialize)]
         struct QwenRequest {
@@ -207,8 +207,8 @@ impl KandilAI {
     }
 
     async fn openai_chat(&self, message: &str) -> Result<String> {
-        // Retrieve API key securely
         let api_key = SecureKey::load("openai")?.expose().to_string();
+        crate::utils::rate_limit::check_limit(&api_key)?;
         
         #[derive(Serialize)]
         struct OpenAIRequest {

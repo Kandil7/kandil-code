@@ -13,3 +13,4 @@ pub mod db;
 pub mod project_manager;
 pub mod cloud_sync;
 pub mod ollama;
+pub mod rate_limit;

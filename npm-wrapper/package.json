@@ -1,0 +1,8 @@
+{
+  "name": "@kandil-code/kandil-code",
+  "version": "0.1.0",
+  "bin": { "kandil": "./bin/kandil.js" },
+  "scripts": {
+    "postinstall": "node scripts/download-binary.js"
+  }
+}
