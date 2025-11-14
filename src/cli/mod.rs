@@ -815,6 +815,9 @@ async fn create_project(template: &str, name: &str) -> Result<()> {
     Ok(())
 }
 
+async fn handle_agent(sub: AgentSub) -> Result<()> {
+    let config = Config::load()?;
+    let factory = AIProviderFactory::new(config.clone());
     let ai = Arc::new(factory.create_ai(&config.ai_provider, &config.ai_model)?);
     
     match sub {
