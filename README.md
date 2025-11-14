@@ -305,10 +305,33 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ### Areas Needing Contributions
 - Additional language templates
-- New AI provider integrations  
+- New AI provider integrations
 - UI theme designs
 - Documentation improvements
 - Bug fixes and enhancements
+
+## Release Process
+
+For maintainers looking to create a new release, please follow the [Release Management Guide](docs/release_management.md).
+
+Releases are automated via GitHub Actions when a new tag is pushed in the format `v*`.
+
+## Installation & Distribution
+
+Kandil Code is available through multiple distribution channels:
+
+### Binary Releases
+Download pre-built binaries from the [Releases page](https://github.com/Kandil7/kandil_code/releases).
+
+### From Source
+```bash
+git clone https://github.com/Kandil7/kandil_code.git
+cd kandil_code
+cargo run --release
+```
+
+### Hosting & Distribution
+For hosting options and distribution methods, see our [Hosting Guide](HOSTING_GUIDE.md).
 
 ## License
 

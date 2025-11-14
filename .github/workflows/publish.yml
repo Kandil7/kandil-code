@@ -1,0 +1,27 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run tests
+        run: cargo test --release --locked
+      
+      - name: Publish to crates.io
+        run: cargo publish --token ${{ secrets.CRATE_TOKEN }}
+        env:
+          CRATE_TOKEN: ${{ secrets.CRATE_TOKEN }}

@@ -50,3 +50,7 @@ predicates = "3.0"
 [features]
 default = ["tui"]
 tui = ["ratatui", "crossterm", "tui-textarea", "syntect"]
+
+[[bin]]
+name = "kandil"
+path = "src/main.rs"

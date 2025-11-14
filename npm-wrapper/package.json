@@ -1,0 +1,13 @@
+{
+  "name": "@kandil-code/kandil-code",
+  "version": "0.1.0",
+  "bin": { "kandil": "./bin/kandil.js" },
+  "scripts": {
+    "postinstall": "node scripts/download-binary.js"
+  },
+  "dependencies": {
+    "unzipper": "^0.10.14",
+    "tar": "^6.2.0",
+    "https-proxy-agent": "^7.0.2"
+  }
+}

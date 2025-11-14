@@ -144,7 +144,7 @@ echo "Show HN: Kandil Code v2.0 - AI-Native Dev Platform" | hnpost
 # Welcome to Kandil Code!
 
 ## 🚀 Get Started
-1. Download: https://github.com/Kandil7/kandil/releases
+1. Download: https://github.com/Kandil7/kandil_code/releases
 2. Run: `kandil init && kandil pipeline --idea="my app"`
 3. Share your project in #showcase
 

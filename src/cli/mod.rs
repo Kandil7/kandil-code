@@ -79,6 +79,11 @@ pub enum Commands {
         #[command(subcommand)]
         sub: LocalModelSub,
     },
+    /// Authentication commands
+    Auth {
+        #[command(subcommand)]
+        sub: AuthSub,
+    },
 }
 
 #[derive(Subcommand)]
@@ -675,6 +680,13 @@ pub enum LocalModelSub {
     Status,
 }
 
+#[derive(Subcommand)]
+pub enum AuthSub {
+    Login {
+        provider: String,
+    },
+}
+
 pub async fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Some(Commands::Init) => init_project().await?,
@@ -689,6 +701,7 @@ pub async fn run(cli: Cli) -> Result<()> {
         Some(Commands::Plugin { sub }) => handle_plugin(sub).await?,
         Some(Commands::Config { sub }) => handle_config(sub).await?,
         Some(Commands::LocalModel { sub }) => handle_local_model(sub).await?,
+        Some(Commands::Auth { sub }) => handle_auth(sub).await?,
         None => {
             println!("Kandil Code - Intelligent Development Platform");
             println!("Use --help for commands");
@@ -1481,6 +1494,23 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
                 Ok(false) => println!("Ollama unavailable"),
                 Err(e) => eprintln!("Ollama status error: {}", e),
             }
+        }
+    }
+    Ok(())
+}
+
+async fn handle_auth(sub: AuthSub) -> Result<()> {
+    match sub {
+        AuthSub::Login { provider } => {
+            println!("Enter API key for {}:", provider);
+            let mut buf = String::new();
+            use std::io::Read;
+            let mut stdin = std::io::stdin();
+            stdin.read_to_string(&mut buf)?;
+            let key = buf.trim().to_string();
+            if key.is_empty() { return Err(anyhow::anyhow!("Empty API key")); }
+            SecureKey::save(&provider, &key)?;
+            println!("API key saved for {}", provider);
         }
     }
     Ok(())

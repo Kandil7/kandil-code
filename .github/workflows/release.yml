@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: create
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Kandil Code ${{ github.ref }}
+          body: Release
+
+  build:
+    needs: create_release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: kandil
+            pkg: tgz
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin: kandil
+            pkg: tgz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bin: kandil
+            pkg: tgz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: kandil.exe
+            pkg: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: cargo build --release --target ${{ matrix.target }}
+      - if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          out=target/${{ matrix.target }}/release/${{ matrix.bin }}
+          name=kandil-${{ matrix.target }}
+          tar czf ${name}.tar.gz -C target/${{ matrix.target }}/release ${{ matrix.bin }}
+          sha256sum ${name}.tar.gz | cut -d ' ' -f1 > ${name}.sha256
+      - if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          out=target/${{ matrix.target }}/release/${{ matrix.bin }}
+          name=kandil-${{ matrix.target }}
+          tar czf ${name}.tar.gz -C target/${{ matrix.target }}/release ${{ matrix.bin }}
+          shasum -a 256 ${name}.tar.gz | cut -d ' ' -f1 > ${name}.sha256
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = "target/${{ matrix.target }}/release/${{ matrix.bin }}"
+          $name = "kandil-${{ matrix.target }}"
+          Compress-Archive -LiteralPath $out -DestinationPath "$name.zip"
+          (Get-FileHash -Algorithm SHA256 "$name.zip").Hash.ToLower() | Out-File "$name.sha256" -NoNewline
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            kandil-*.tar.gz
+            kandil-*.zip
+            kandil-*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
