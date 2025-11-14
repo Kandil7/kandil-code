@@ -7,6 +7,7 @@ use crate::utils::plugins::PluginManager;
 use crate::utils::refactoring::{RefactorEngine, RefactorParams};
 use crate::utils::test_generation::TestGenerator;
 use crate::utils::project_manager::ProjectManager;
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[command(name = "kandil")]
@@ -392,11 +393,7 @@ pub enum TechRoleSubCommand {
         #[command(subcommand)]
         sub: DeveloperSubCommand,
     },
-    /// QA role simulation
-    Qa {
-        #[command(subcommand)]
-        sub: QaSubCommand,
-    },
+
     /// Cross-role collaboration
     Collaborate {
         #[command(subcommand)]
@@ -894,7 +891,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
                 QaSubCommand::FullSuite { project_path } => {
                     let report = qa_system.run_full_qa_suite(&project_path).await?;
                     println!("Full QA suite completed for project at {}:", project_path);
-                    println!("{}", report.generate_qa_report_md());
+                    println!("{}", qa_system.generate_qa_report_md());
                 }
             }
         },
@@ -1046,44 +1043,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
                         }
                     }
                 },
-                TechRoleSubCommand::Qa { sub: qa_cmd } => {
-                    let mut qa_agent = crate::core::agents::QaSimulation::new(ai);
-                    match qa_cmd {
-                        QaSubCommand::Plan { feature, priority } => {
-                            let priority_enum = match priority.as_str() {
-                                "low" => crate::core::agents::qa::Priority::Low,
-                                "medium" => crate::core::agents::qa::Priority::Medium,
-                                "high" => crate::core::agents::qa::Priority::High,
-                                "critical" => crate::core::agents::qa::Priority::Critical,
-                                _ => crate::core::agents::qa::Priority::Medium,
-                            };
-                            
-                            let plan = qa_agent.generate_test_plan(&feature, priority_enum).await?;
-                            println!("Test plan generated:");
-                            println!("  ID: {}, Title: {}", plan.id, plan.title);
-                            println!("  Scenarios: {}", plan.test_scenarios.len());
-                            println!("  Priority: {:?}", plan.priority);
-                        },
-                        QaSubCommand::Execute { plan_id, scenario_id } => {
-                            let status = qa_agent.execute_test(&plan_id, &scenario_id).await?;
-                            println!("Test execution status: {:?}", status);
-                        },
-                        QaSubCommand::Report { title, description, severity, environment } => {
-                            let severity_enum = match severity.as_str() {
-                                "low" => crate::core::agents::qa::Severity::Low,
-                                "medium" => crate::core::agents::qa::Severity::Medium,
-                                "high" => crate::core::agents::qa::Severity::High,
-                                "critical" => crate::core::agents::qa::Severity::Critical,
-                                _ => crate::core::agents::qa::Severity::Medium,
-                            };
-                            
-                            let bug = qa_agent.report_bug(&title, &description, severity_enum, &environment).await?;
-                            println!("Bug report created:");
-                            println!("  ID: {}, Title: {}", bug.id, bug.title);
-                            println!("  Severity: {:?}, Status: {:?}", bug.severity, bug.status);
-                        }
-                    }
-                },
+
                 TechRoleSubCommand::Collaborate { sub: collab_cmd } => {
                     let mut collab_manager = crate::core::agents::CollaborationManager::new();
                     match collab_cmd {
