@@ -67,12 +67,12 @@ impl TemplateEngine {
             files: vec![
                 TemplateFile {
                     path: "pubspec.yaml".to_string(),
-                    content: include_str!("../../templates/flutter/clean_arch/pubspec.yaml").to_string(),
+                    content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/flutter/clean_arch/pubspec.yaml")).to_string(),
                     is_executable: false,
                 },
                 TemplateFile {
                     path: "lib/main.dart".to_string(),
-                    content: include_str!("../../templates/flutter/clean_arch/lib/main.dart").to_string(),
+                    content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/flutter/clean_arch/lib/main.dart")).to_string(),
                     is_executable: false,
                 },
             ],
@@ -87,12 +87,12 @@ impl TemplateEngine {
             files: vec![
                 TemplateFile {
                     path: "requirements.txt".to_string(),
-                    content: include_str!("../../templates/python/fastapi/requirements.txt").to_string(),
+                    content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/python/fastapi/requirements.txt")).to_string(),
                     is_executable: false,
                 },
                 TemplateFile {
                     path: "app/main.py".to_string(),
-                    content: include_str!("../../templates/python/fastapi/app/main.py").to_string(),
+                    content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/python/fastapi/app/main.py")).to_string(),
                     is_executable: false,
                 },
             ],
@@ -107,12 +107,12 @@ impl TemplateEngine {
             files: vec![
                 TemplateFile {
                     path: "package.json".to_string(),
-                    content: include_str!("../../templates/js/nextjs/package.json").to_string(),
+                    content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/js/nextjs/package.json")).to_string(),
                     is_executable: false,
                 },
                 TemplateFile {
                     path: "pages/index.js".to_string(),
-                    content: include_str!("../../templates/js/nextjs/pages/index.js").to_string(),
+                    content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/js/nextjs/pages/index.js")).to_string(),
                     is_executable: false,
                 },
             ],
@@ -127,12 +127,12 @@ impl TemplateEngine {
             files: vec![
                 TemplateFile {
                     path: "Cargo.toml".to_string(),
-                    content: include_str!("../../templates/rust/cli/Cargo.toml").to_string(),
+                    content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/rust/cli/Cargo.toml")).to_string(),
                     is_executable: false,
                 },
                 TemplateFile {
                     path: "src/main.rs".to_string(),
-                    content: include_str!("../../templates/rust/cli/src/main.rs").to_string(),
+                    content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/rust/cli/src/main.rs")).to_string(),
                     is_executable: false,
                 },
             ],
