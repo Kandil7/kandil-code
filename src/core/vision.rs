@@ -1,6 +1,6 @@
 //! Vision-First Code Understanding
 //!
-//! Implements image processing capabilities to interpret wireframes, 
+//! Implements image processing capabilities to interpret wireframes,
 //! architecture diagrams, and UI mocks to generate executable code
 
 use anyhow::Result;
@@ -8,7 +8,7 @@ use image::{DynamicImage, GenericImageView};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ImageType {
     ArchitectureDiagram,
     UIMock,
@@ -47,10 +47,10 @@ impl VisionAdapter {
     pub async fn interpret_design(&self, image_path: &str) -> Result<DesignSpec> {
         // Load and analyze the image
         let image = self.image_processor.load_image(image_path)?;
-        
+
         // Classify the image type
         let image_type = self.classify_image(&image, image_path).await?;
-        
+
         match image_type {
             ImageType::ArchitectureDiagram => self.extract_components(image_path).await,
             ImageType::UIMock => self.generate_html_css(image_path).await,
@@ -66,15 +66,15 @@ impl VisionAdapter {
     async fn classify_image(&self, image: &DynamicImage, _image_path: &str) -> Result<ImageType> {
         // This would use actual image classification in a real implementation
         // For now, we'll use a simple heuristic based on common visual patterns
-        
+
         let (width, height) = image.dimensions();
         let aspect_ratio = width as f32 / height as f32;
-        
+
         // Check for common indicators
         let has_boxes_and_arrows = self.has_boxes_and_arrows(image)?;
         let has_ui_elements = self.has_ui_elements(image)?;
         let has_handwriting = self.has_handwriting(image)?;
-        
+
         if has_boxes_and_arrows {
             Ok(ImageType::ArchitectureDiagram)
         } else if has_ui_elements {
@@ -90,7 +90,7 @@ impl VisionAdapter {
         // In a real implementation, this would use computer vision to identify
         // and extract architectural components from diagrams
         // For now, we'll simulate the extraction
-        
+
         let detected_elements = vec![
             DetectedElement {
                 element_type: "database".to_string(),
@@ -125,7 +125,7 @@ impl VisionAdapter {
         // In a real implementation, this would use computer vision to identify
         // UI elements and generate appropriate HTML/CSS code
         // For now, we'll simulate the generation
-        
+
         let html_template = r#"
 <!DOCTYPE html>
 <html>
@@ -143,7 +143,8 @@ impl VisionAdapter {
     </div>
 </body>
 </html>
-        "#.trim();
+        "#
+        .trim();
 
         let content = html_template.replace("{}", image_path);
 
@@ -175,7 +176,7 @@ impl VisionAdapter {
         // In a real implementation, this would use OCR and sketch analysis
         // to understand handwritten diagrams or sketches
         // For now, we'll simulate the parsing
-        
+
         let detected_elements = vec![
             DetectedElement {
                 element_type: "text".to_string(),
@@ -216,7 +217,7 @@ impl VisionAdapter {
         // In a real implementation, this would analyze a screenshot
         // to understand the UI elements and potentially reverse engineer code
         // For now, we'll simulate the interpretation
-        
+
         let detected_elements = vec![
             DetectedElement {
                 element_type: "window".to_string(),
@@ -243,14 +244,12 @@ impl VisionAdapter {
 
     async fn generate_code_from_visual_elements(&self, image_path: &str) -> Result<DesignSpec> {
         // Fallback for unknown image types - try to generate code based on visual elements
-        let detected_elements = vec![
-            DetectedElement {
-                element_type: "visual_element".to_string(),
-                content: "Visual element detected".to_string(),
-                position: (0, 0),
-                size: (100, 100),
-            },
-        ];
+        let detected_elements = vec![DetectedElement {
+            element_type: "visual_element".to_string(),
+            content: "Visual element detected".to_string(),
+            position: (0, 0),
+            size: (100, 100),
+        }];
 
         let spec = DesignSpec {
             content: format!("Visual elements detected in: {}", image_path),
@@ -291,7 +290,7 @@ impl ImageProcessor {
 
     pub fn load_image(&self, image_path: &str) -> Result<DynamicImage> {
         let path = Path::new(image_path);
-        
+
         if !path.exists() {
             return Err(anyhow::anyhow!("Image file does not exist: {}", image_path));
         }
@@ -300,7 +299,12 @@ impl ImageProcessor {
         Ok(img)
     }
 
-    pub fn resize_image(&self, img: &DynamicImage, max_width: u32, max_height: u32) -> DynamicImage {
+    pub fn resize_image(
+        &self,
+        img: &DynamicImage,
+        max_width: u32,
+        max_height: u32,
+    ) -> DynamicImage {
         let (width, height) = img.dimensions();
 
         if width <= max_width && height <= max_height {
@@ -341,7 +345,7 @@ mod tests {
             image_type: ImageType::ArchitectureDiagram,
             detected_elements: vec![],
         };
-        
+
         assert_eq!(spec.content, "Test spec");
         assert_eq!(spec.image_type, ImageType::ArchitectureDiagram);
         assert!(spec.detected_elements.is_empty());
