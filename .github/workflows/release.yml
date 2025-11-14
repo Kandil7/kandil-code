@@ -56,6 +56,16 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - run: cargo build --release --target ${{ matrix.target }}
+      - if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          target=${{ matrix.target }}
+          bin=${{ matrix.bin }}
+          ./target/$target/release/$bin --version || true
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "target/${{ matrix.target }}/release/${{ matrix.bin }}" --version
       - if: runner.os == 'Linux'
         shell: bash
         run: |
