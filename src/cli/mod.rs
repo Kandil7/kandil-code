@@ -161,6 +161,12 @@ pub enum MaintenanceSubCommand {
 }
 
 pub enum QaSubCommand {
+    /// Run the full QA suite for a project
+    FullSuite {
+        /// Path to the project to run QA on
+        project_path: String,
+    },
+}
 
 pub enum ReleaseSubCommand {
     /// Run the full release process
