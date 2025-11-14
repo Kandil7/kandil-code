@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use anyhow::Result;
-use crate::core::adapters::ai::{KandilAI, factory::AIProviderFactory};
+use crate::core::adapters::ai::factory::AIProviderFactory;
 use crate::utils::config::{Config, SecureKey};
 use crate::utils::templates::TemplateEngine;
 use crate::utils::plugins::PluginManager;
@@ -1322,7 +1322,7 @@ async fn handle_refactor(sub: RefactorSub) -> Result<()> {
                 }
             }
             
-            let result = engine.preview_refactor(&file, &refactor_type, &refactor_params).await?;
+            let result = engine.preview_refactor(&file, &refactor_type, &refactor_params)?;
             println!("Refactoring preview for '{}':", file);
             println!("{}", result);
         },
@@ -1343,7 +1343,7 @@ async fn handle_test(sub: TestSub) -> Result<()> {
     let factory = AIProviderFactory::new(config.clone());
     let ai = factory.create_ai(&config.ai_provider, &config.ai_model)?;
     let tracked_ai = crate::core::adapters::TrackedAI::new(ai, factory.get_cost_tracker());
-    let generator = TestGenerator::new(tracked_ai.ai);  // Using the underlying AI for now
+    let generator = TestGenerator::new(tracked_ai.ai.clone());  // Using the underlying AI for now
     
     match sub {
         TestSub::Generate { file, framework } => {

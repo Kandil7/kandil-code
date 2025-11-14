@@ -3,6 +3,7 @@
 //! The main entrypoint for the Kandil Code CLI application.
 
 use anyhow::Result;
+use clap::Parser;
 use env_logger::Env;
 
 mod cli;
