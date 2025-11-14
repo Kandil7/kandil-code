@@ -1,13 +1,14 @@
 //! QA simulation agent
-//! 
+//!
 //! Agent that simulates the role of a Quality Assurance engineer
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState};
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestPlan {
@@ -121,14 +122,14 @@ pub struct QualityMetrics {
 }
 
 pub struct QaSimulation {
-    pub ai: KandilAI,
+    pub ai: Arc<KandilAI>,
     test_plans: HashMap<String, TestPlan>,
     bug_reports: HashMap<String, BugReport>,
     quality_history: Vec<QualityReport>,
 }
 
 impl QaSimulation {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             ai,
             test_plans: HashMap::new(),
@@ -137,9 +138,13 @@ impl QaSimulation {
         }
     }
 
-    pub async fn generate_test_plan(&mut self, feature_spec: &str, priority: Priority) -> Result<TestPlan> {
+    pub async fn generate_test_plan(
+        &mut self,
+        feature_spec: &str,
+        priority: Priority,
+    ) -> Result<TestPlan> {
         let test_plan_id = format!("TP-{}", self.test_plans.len() + 1);
-        
+
         let prompt = format!(
             r#"Generate a comprehensive test plan for this feature:
             {}
@@ -156,50 +161,73 @@ impl QaSimulation {
         );
 
         let test_plan_text = self.ai.chat(&prompt).await?;
-        
+
         let test_plan = TestPlan {
             id: test_plan_id,
-            title: format!("Test Plan for: {}", feature_spec.chars().take(30).collect::<String>()),
+            title: format!(
+                "Test Plan for: {}",
+                feature_spec.chars().take(30).collect::<String>()
+            ),
             description: feature_spec.to_string(),
-            test_scenarios: vec![
-                TestScenario {
-                    id: "TS-001".to_string(),
-                    title: "Verify main functionality".to_string(),
-                    preconditions: vec!["System is running".to_string()],
-                    steps: vec!["Execute main function".to_string(), "Verify output".to_string()],
-                    expected_results: vec!["Function returns expected result".to_string()],
-                    actual_results: None,
-                    status: TestStatus::NotStarted,
-                    priority: priority.clone(),
-                }
-            ],
+            test_scenarios: vec![TestScenario {
+                id: "TS-001".to_string(),
+                title: "Verify main functionality".to_string(),
+                preconditions: vec!["System is running".to_string()],
+                steps: vec![
+                    "Execute main function".to_string(),
+                    "Verify output".to_string(),
+                ],
+                expected_results: vec!["Function returns expected result".to_string()],
+                actual_results: None,
+                status: TestStatus::NotStarted,
+                priority: priority.clone(),
+            }],
             priority,
             estimated_duration: "2-3 days".to_string(),
             environment: "Test Environment".to_string(),
         };
-        
-        self.test_plans.insert(test_plan.id.clone(), test_plan.clone());
-        
+
+        self.test_plans
+            .insert(test_plan.id.clone(), test_plan.clone());
+
         Ok(test_plan)
     }
 
-    pub async fn execute_test(&mut self, test_plan_id: &str, test_scenario_id: &str) -> Result<TestStatus> {
+    pub async fn execute_test(
+        &mut self,
+        test_plan_id: &str,
+        test_scenario_id: &str,
+    ) -> Result<TestStatus> {
         if let Some(plan) = self.test_plans.get_mut(test_plan_id) {
-            if let Some(scenario) = plan.test_scenarios.iter_mut().find(|s| s.id == test_scenario_id) {
+            if let Some(scenario) = plan
+                .test_scenarios
+                .iter_mut()
+                .find(|s| s.id == test_scenario_id)
+            {
                 // Simulate test execution
                 scenario.status = TestStatus::Passed;
                 scenario.actual_results = Some(vec!["Test executed successfully".to_string()]);
-                
+
                 return Ok(scenario.status.clone());
             }
         }
-        
-        Err(anyhow::anyhow!("Test scenario {} not found in plan {}", test_scenario_id, test_plan_id))
+
+        Err(anyhow::anyhow!(
+            "Test scenario {} not found in plan {}",
+            test_scenario_id,
+            test_plan_id
+        ))
     }
 
-    pub async fn report_bug(&mut self, title: &str, description: &str, severity: Severity, environment: &str) -> Result<BugReport> {
+    pub async fn report_bug(
+        &mut self,
+        title: &str,
+        description: &str,
+        severity: Severity,
+        environment: &str,
+    ) -> Result<BugReport> {
         let bug_id = format!("BUG-{}", self.bug_reports.len() + 1);
-        
+
         let bug_report = BugReport {
             id: bug_id,
             title: title.to_string(),
@@ -223,9 +251,10 @@ impl QaSimulation {
             created_date: chrono::Utc::now().format("%Y-%m-%d").to_string(),
             assigned_to: None,
         };
-        
-        self.bug_reports.insert(bug_report.id.clone(), bug_report.clone());
-        
+
+        self.bug_reports
+            .insert(bug_report.id.clone(), bug_report.clone());
+
         Ok(bug_report)
     }
 
@@ -296,7 +325,7 @@ impl Agent for QaSimulation {
             "As a QA Engineer, given this testing challenge: {}\n\nPlan the next testing activity. Consider test coverage, risk areas, and quality objectives.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -306,7 +335,7 @@ impl Agent for QaSimulation {
             "Perform this QA task: {}\n\nExecute tests, analyze results, or generate quality reports.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -316,7 +345,7 @@ impl Agent for QaSimulation {
             "Analyze these QA results: {}\n\nWhat do these results indicate about product quality? What risks are identified?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }
