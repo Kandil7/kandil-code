@@ -6,7 +6,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
+use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use crate::core::adapters::ai::KandilAI;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,6 +37,17 @@ pub enum Severity {
     Critical,
 }
 
+impl std::fmt::Display for Severity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Severity::Low => write!(f, "Low"),
+            Severity::Medium => write!(f, "Medium"),
+            Severity::High => write!(f, "High"),
+            Severity::Critical => write!(f, "Critical"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImplementationProgress {
     pub completed_features: Vec<String>,
@@ -65,7 +76,7 @@ pub struct ReviewComment {
 }
 
 pub struct DeveloperSimulation {
-    ai: KandilAI,
+    pub ai: KandilAI,
     pub current_project: String,
     pub session_history: HashMap<String, PairProgrammingSession>,
     pub implementation_progress: HashMap<String, ImplementationProgress>,
