@@ -4,19 +4,22 @@
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Paragraph, List, ListItem},
+    widgets::{Block, Borders, Paragraph, List, ListItem, Widget, StatefulWidget, ListState, Wrap},
 };
 
-pub struct FileExplorer<'a> {
-    items: Vec<ListItem<'a>>,
+#[derive(Clone)]
+pub struct FileExplorer {
+    items: Vec<ListItem<'static>>,
     selected: usize,
 }
 
-impl<'a> FileExplorer<'a> {
+impl FileExplorer {
     pub fn new(files: Vec<String>) -> Self {
         let items: Vec<ListItem> = files
             .iter()
-            .map(|f| ListItem::new(f.as_str()))
+            .map(|f| {
+                ListItem::new(vec![Line::from(f.clone())])
+            })
             .collect();
 
         Self {
@@ -38,17 +41,17 @@ impl<'a> FileExplorer<'a> {
     }
 }
 
-impl<'a> Widget for FileExplorer<'a> {
+impl Widget for FileExplorer {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let block = Block::default()
             .borders(Borders::ALL)
             .title("File Explorer");
-        
+
         let list = List::new(self.items)
             .block(block)
             .highlight_style(Style::default().bg(Color::LightBlue).add_modifier(Modifier::BOLD))
             .highlight_symbol("> ");
-        
+
         StatefulWidget::render(
             list,
             area,
@@ -58,36 +61,38 @@ impl<'a> Widget for FileExplorer<'a> {
     }
 }
 
-pub struct CodeViewer<'a> {
-    content: &'a str,
+#[derive(Clone)]
+pub struct CodeViewer {
+    content: String,
 }
 
-impl<'a> CodeViewer<'a> {
-    pub fn new(content: &'a str) -> Self {
-        Self { content }
+impl CodeViewer {
+    pub fn new(content: &str) -> Self {
+        Self { content: content.to_string() }
     }
 }
 
-impl<'a> Widget for CodeViewer<'a> {
+impl Widget for CodeViewer {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let block = Block::default()
             .borders(Borders::ALL)
             .title("Code Viewer");
-        
+
         let paragraph = Paragraph::new(self.content)
             .block(block)
             .wrap(Wrap { trim: true });
-        
+
         paragraph.render(area, buf);
     }
 }
 
-pub struct AIChatWidget<'a> {
+#[derive(Clone)]
+pub struct AIChatWidget {
     messages: Vec<String>,
     input: String,
 }
 
-impl<'a> AIChatWidget<'a> {
+impl AIChatWidget {
     pub fn new() -> Self {
         Self {
             messages: vec![],
@@ -104,18 +109,18 @@ impl<'a> AIChatWidget<'a> {
     }
 }
 
-impl<'a> Widget for AIChatWidget<'a> {
+impl Widget for AIChatWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let block = Block::default()
             .borders(Borders::ALL)
             .title("AI Chat");
-        
+
         let text: Vec<Line> = self
             .messages
             .iter()
             .map(|msg| Line::from(msg.as_str()))
             .collect();
-        
+
         Paragraph::new(text)
             .block(block)
             .wrap(Wrap { trim: true })

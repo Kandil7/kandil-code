@@ -8,12 +8,12 @@ use crate::utils::code_analysis::CodeAnalyzer;
 use anyhow::Result;
 use ratatui::{
     backend::CrosstermBackend,
-    crossterm::{
-        execute,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    },
     layout::{Layout, Constraint, Direction},
     Frame, Terminal,
+};
+use crossterm::{
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io;
 
@@ -26,9 +26,9 @@ pub enum UIState {
 
 pub struct StudioApp {
     pub ui_state: UIState,
-    pub file_explorer: FileExplorer<'static>,
-    pub code_viewer: CodeViewer<'static>,
-    pub ai_chat: AIChatWidget<'static>,
+    pub file_explorer: FileExplorer,
+    pub code_viewer: CodeViewer,
+    pub ai_chat: AIChatWidget,
     pub code_analyzer: CodeAnalyzer,
     pub should_quit: bool,
 }
@@ -106,9 +106,9 @@ impl StudioApp {
             .split(f.size());
 
         // Render widgets
-        f.render_widget(&self.file_explorer, chunks[0]);
-        f.render_widget(&self.code_viewer, chunks[1]);
-        f.render_widget(&self.ai_chat, chunks[2]);
+        f.render_widget(self.file_explorer.clone(), chunks[0]);
+        f.render_widget(self.code_viewer.clone(), chunks[1]);
+        f.render_widget(self.ai_chat.clone(), chunks[2]);
     }
 
     fn handle_key_events(&mut self, key_event: crossterm::event::KeyEvent) -> Result<()> {

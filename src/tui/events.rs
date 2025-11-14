@@ -26,13 +26,14 @@ impl EventHandler {
 
     pub async fn next(&self) -> Result<AppEvent> {
         let tick_rate = self.tick_rate;
-        
+
         // Use select to wait for either an input event or a timeout
         let event = tokio::select! {
             crossterm_event = tokio::task::spawn_blocking(move || {
                 event::read()
             }) => {
-                match crossterm_event? {
+                let crossterm_event = crossterm_event??;
+                match crossterm_event {
                     CEvent::Key(key) => AppEvent::Key(key),
                     CEvent::Mouse(mouse) => AppEvent::Mouse(mouse),
                     _ => return Err(anyhow::anyhow!("Unsupported event type")),
