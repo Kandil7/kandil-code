@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct I18nAssistant {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub supported_languages: Vec<String>,
     pub translation_cache: HashMap<String, HashMap<String, String>>, // {lang: {key: translation}}
 }

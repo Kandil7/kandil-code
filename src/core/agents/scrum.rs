@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sprint {
@@ -72,13 +73,13 @@ pub struct Retrospective {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScrumSimulation {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub current_sprint: Option<Sprint>,
     pub ceremony_templates: HashMap<String, Vec<String>>, // Templates for each ceremony
 }
 
 impl ScrumSimulation {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         let mut templates = HashMap::new();
         
         // Add ceremony templates
