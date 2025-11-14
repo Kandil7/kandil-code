@@ -119,10 +119,10 @@ impl RefactorEngine {
 pub struct RefactorParams {
     pub old_name: Option<String>,
     pub new_name: Option<String>,
-    start_line: Option<usize>,
-    end_line: Option<usize>,
-    function_name: Option<String>,
-    visibility: Option<String>,
+    pub start_line: Option<usize>,
+    pub end_line: Option<usize>,
+    pub function_name: Option<String>,
+    pub visibility: Option<String>,
 }
 
 impl RefactorParams {
