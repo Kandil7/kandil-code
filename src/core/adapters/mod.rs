@@ -7,4 +7,4 @@ pub mod ai;
 pub mod git;
 pub mod file;
 
-pub use ai::{KandilAI, factory::AIProviderFactory, tracked::TrackedAI};
+pub use ai::{factory::AIProviderFactory, tracked::TrackedAI};

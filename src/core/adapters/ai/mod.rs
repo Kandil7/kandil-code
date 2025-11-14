@@ -11,7 +11,7 @@ use crate::utils::config::SecureKey;
 pub mod factory;
 pub mod tracked;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AIProvider {
     Ollama,
     Claude,
@@ -19,11 +19,14 @@ pub enum AIProvider {
     OpenAI,
 }
 
-#[derive(Debug, Clone)]
+use std::sync::Arc;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KandilAI {
     provider: AIProvider,
     model: String,
-    client: Client,
+    #[serde(skip)]
+    client: Arc<Client>,
     base_url: String,
 }
 
@@ -47,9 +50,14 @@ impl KandilAI {
         Ok(Self {
             provider: provider_enum,
             model,
-            client: Client::new(),
+            client: Arc::new(Client::new()),
             base_url,
         })
+    }
+
+    // Initialize the client after deserialization
+    fn init_client(&mut self) {
+        self.client = Arc::new(Client::new());
     }
 
     pub async fn chat(&self, message: &str) -> Result<String> {
@@ -134,10 +142,11 @@ impl KandilAI {
             let result: ClaudeResponse = response.json().await?;
             Ok(result.completion.trim().to_string())
         } else {
+            let status = response.status();
             let error_text = response.text().await?;
             Err(anyhow::anyhow!(
                 "Claude request failed: {} - {}",
-                response.status(),
+                status,
                 error_text
             ))
         }
@@ -197,10 +206,11 @@ impl KandilAI {
             let result: QwenResponse = response.json().await?;
             Ok(result.output.text.trim().to_string())
         } else {
+            let status = response.status();
             let error_text = response.text().await?;
             Err(anyhow::anyhow!(
                 "Qwen request failed: {} - {}",
-                response.status(),
+                status,
                 error_text
             ))
         }
@@ -217,7 +227,7 @@ impl KandilAI {
             temperature: f32,
         }
 
-        #[derive(Serialize)]
+        #[derive(Serialize, Deserialize)]
         struct OpenAIMessage {
             role: String,
             content: String,
@@ -275,10 +285,11 @@ impl KandilAI {
                 Err(anyhow::anyhow!("No choices returned from OpenAI"))
             }
         } else {
+            let status = response.status();
             let error_text = response.text().await?;
             Err(anyhow::anyhow!(
                 "OpenAI request failed: {} - {}",
-                response.status(),
+                status,
                 error_text
             ))
         }
