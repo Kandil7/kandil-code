@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SprintPlan {
@@ -56,11 +57,11 @@ pub enum TaskStatus {
 }
 
 pub struct ProjectManagerSimulation {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
 }
 
 impl ProjectManagerSimulation {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self { ai }
     }
 
