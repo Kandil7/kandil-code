@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct A11yAssistant {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub wcag_standards: HashMap<String, String>, // Guidelines reference
 }
 
@@ -70,7 +71,7 @@ pub struct WcagGuideline {
 }
 
 impl A11yAssistant {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         // Add WCAG standards reference
         let mut wcag_standards = HashMap::new();
         wcag_standards.insert("1.1.1".to_string(), "Non-text Content: Provide text alternative for non-text content".to_string());

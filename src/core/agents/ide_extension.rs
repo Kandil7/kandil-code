@@ -5,6 +5,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdeExtension {
@@ -12,7 +13,7 @@ pub struct IdeExtension {
     pub version: String,
     pub supported_ide: Vec<String>, // e.g., "VSCode", "IntelliJ", "Vim"
     pub features: Vec<ExtensionFeature>,
-    pub ai_client: KandilAI,
+    pub ai_client: Arc<KandilAI>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -66,7 +67,7 @@ pub struct InlineComment {
 }
 
 impl IdeExtension {
-    pub fn new(ai_client: KandilAI) -> Self {
+    pub fn new(ai_client: Arc<KandilAI>) -> Self {
         Self {
             name: "Kandil Code Extension".to_string(),
             version: "0.1.0".to_string(),

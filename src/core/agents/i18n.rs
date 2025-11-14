@@ -45,7 +45,7 @@ pub struct ConsistencyIssue {
 }
 
 impl I18nAssistant {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             ai,
             supported_languages: vec![
