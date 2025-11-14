@@ -153,6 +153,7 @@ pub enum AgentSub {
     },
 }
 
+#[derive(Subcommand)]
 pub enum MaintenanceSubCommand {
     /// Run a health check for a system
     HealthCheck {
@@ -161,6 +162,7 @@ pub enum MaintenanceSubCommand {
     },
 }
 
+#[derive(Subcommand)]
 pub enum QaSubCommand {
     /// Run the full QA suite for a project
     FullSuite {
@@ -169,6 +171,7 @@ pub enum QaSubCommand {
     },
 }
 
+#[derive(Subcommand)]
 pub enum ReleaseSubCommand {
     /// Run the full release process
     FullProcess {

@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequirementsDocument {
@@ -53,11 +54,11 @@ pub struct Actor {
 }
 
 pub struct RequirementsAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
 }
 
 impl RequirementsAgent {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self { ai }
     }
 
