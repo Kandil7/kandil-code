@@ -1,30 +1,27 @@
 //! AI adapter with cost tracking
-//! 
+//!
 //! Wrapper around KandilAI that adds cost tracking functionality
 
-use anyhow::Result;
-use std::sync::Arc;
 use crate::core::adapters::ai::KandilAI;
 use crate::utils::cost_tracking::CostTracker;
+use anyhow::Result;
+use std::sync::Arc;
 
 pub struct TrackedAI {
-    pub ai: KandilAI,
+    pub ai: Arc<KandilAI>,
     cost_tracker: Arc<CostTracker>,
 }
 
 impl TrackedAI {
-    pub fn new(ai: KandilAI, cost_tracker: Arc<CostTracker>) -> Self {
-        Self {
-            ai,
-            cost_tracker,
-        }
+    pub fn new(ai: Arc<KandilAI>, cost_tracker: Arc<CostTracker>) -> Self {
+        Self { ai, cost_tracker }
     }
 
     pub async fn chat(&self, message: &str) -> Result<String> {
         // For now, just call the underlying AI and return the result
         // In a real implementation, we would track token usage and costs
         let response = self.ai.chat(message).await?;
-        
+
         // Extract provider string for cost tracking
         let provider_str = match self.ai.provider {
             crate::core::adapters::ai::AIProvider::Ollama => "ollama",
@@ -32,7 +29,7 @@ impl TrackedAI {
             crate::core::adapters::ai::AIProvider::Qwen => "qwen",
             crate::core::adapters::ai::AIProvider::OpenAI => "openai",
         };
-        
+
         // In a full implementation, we would estimate token counts from the message/response
         // and call self.cost_tracker.record_usage() with real values
         // For now, we'll just do a placeholder call
@@ -40,7 +37,7 @@ impl TrackedAI {
             provider_str,
             &self.ai.model,
             message.len() as u32,  // Placeholder - real token count needed
-            response.len() as u32  // Placeholder - real token count needed
+            response.len() as u32, // Placeholder - real token count needed
         );
 
         Ok(response)

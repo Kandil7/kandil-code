@@ -1,13 +1,14 @@
 //! Green Development Agent
-//! 
+//!
 //! Agent that audits code for carbon footprint and energy efficiency
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState};
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CarbonReport {
@@ -71,11 +72,11 @@ pub enum EnvironmentalImpact {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GreenDevAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
 }
 
 impl GreenDevAgent {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self { ai }
     }
 
@@ -99,34 +100,44 @@ impl GreenDevAgent {
         );
 
         let audit_text = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         // For simulation, return basic report
         Ok(CarbonReport {
             total_estimated_kwh: 0.005, // 5 Wh per execution
-            breakdown: vec![("main_algorithm".to_string(), 0.002), ("data_processing".to_string(), 0.003)]
-                .into_iter()
-                .collect(),
-            optimization_suggestions: vec![
-                Suggestion {
-                    id: "GREEN-001".to_string(),
-                    title: "Implement caching".to_string(),
-                    description: "Cache computation results to avoid repeated work".to_string(),
-                    estimated_kwh_saved: 0.001,
-                    implementation_effort: EffortLevel::Medium,
-                    priority: Priority::High,
-                }
-            ],
+            breakdown: vec![
+                ("main_algorithm".to_string(), 0.002),
+                ("data_processing".to_string(), 0.003),
+            ]
+            .into_iter()
+            .collect(),
+            optimization_suggestions: vec![Suggestion {
+                id: "GREEN-001".to_string(),
+                title: "Implement caching".to_string(),
+                description: "Cache computation results to avoid repeated work".to_string(),
+                estimated_kwh_saved: 0.001,
+                implementation_effort: EffortLevel::Medium,
+                priority: Priority::High,
+            }],
             efficiency_score: 72,
             environmental_impact: EnvironmentalImpact::Moderate,
         })
     }
 
-    pub async fn optimize_energy(&self, inefficiencies: &[Inefficiency]) -> Result<Vec<Suggestion>> {
-        let inefficiency_descriptions: Vec<String> = inefficiencies.iter()
-            .map(|ie| format!("Location: {}, Pattern: {}, Impact: {:?}", ie.location, ie.pattern, ie.impact_level))
+    pub async fn optimize_energy(
+        &self,
+        inefficiencies: &[Inefficiency],
+    ) -> Result<Vec<Suggestion>> {
+        let inefficiency_descriptions: Vec<String> = inefficiencies
+            .iter()
+            .map(|ie| {
+                format!(
+                    "Location: {}, Pattern: {}, Impact: {:?}",
+                    ie.location, ie.pattern, ie.impact_level
+                )
+            })
             .collect();
-            
+
         let prompt = format!(
             r#"Optimize these energy-inefficient patterns:
             {:?}
@@ -137,18 +148,16 @@ impl GreenDevAgent {
         );
 
         let suggestions_text = self.ai.chat(&prompt).await?;
-        
+
         // For simulation, return a basic suggestion
-        Ok(vec![
-            Suggestion {
-                id: "OPT-001".to_string(),
-                title: "Algorithm optimization".to_string(),
-                description: "Replace inefficient algorithm with more efficient one".to_string(),
-                estimated_kwh_saved: 0.0015,
-                implementation_effort: EffortLevel::High,
-                priority: Priority::Critical,
-            }
-        ])
+        Ok(vec![Suggestion {
+            id: "OPT-001".to_string(),
+            title: "Algorithm optimization".to_string(),
+            description: "Replace inefficient algorithm with more efficient one".to_string(),
+            estimated_kwh_saved: 0.0015,
+            implementation_effort: EffortLevel::High,
+            priority: Priority::Critical,
+        }])
     }
 
     pub async fn analyze_infrastructure(&self, infra_desc: &str) -> Result<CarbonReport> {
@@ -168,22 +177,24 @@ impl GreenDevAgent {
         );
 
         let analysis = self.ai.chat(&prompt).await?;
-        
+
         Ok(CarbonReport {
             total_estimated_kwh: 120.5, // kWh per day
-            breakdown: vec![("compute".to_string(), 80.0), ("network".to_string(), 25.0), ("storage".to_string(), 15.5)]
-                .into_iter()
-                .collect(),
-            optimization_suggestions: vec![
-                Suggestion {
-                    id: "INFRA-GREEN-001".to_string(),
-                    title: "Right-size VMs".to_string(),
-                    description: "Adjust instance sizes based on actual usage patterns".to_string(),
-                    estimated_kwh_saved: 35.0,
-                    implementation_effort: EffortLevel::Low,
-                    priority: Priority::High,
-                }
-            ],
+            breakdown: vec![
+                ("compute".to_string(), 80.0),
+                ("network".to_string(), 25.0),
+                ("storage".to_string(), 15.5),
+            ]
+            .into_iter()
+            .collect(),
+            optimization_suggestions: vec![Suggestion {
+                id: "INFRA-GREEN-001".to_string(),
+                title: "Right-size VMs".to_string(),
+                description: "Adjust instance sizes based on actual usage patterns".to_string(),
+                estimated_kwh_saved: 35.0,
+                implementation_effort: EffortLevel::Low,
+                priority: Priority::High,
+            }],
             efficiency_score: 65,
             environmental_impact: EnvironmentalImpact::High,
         })
@@ -197,7 +208,7 @@ impl Agent for GreenDevAgent {
             "As a Green Development Specialist, given this sustainability task: {}\n\nPlan the next green optimization activity. Consider energy efficiency, resource optimization, and environmental impact.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -207,7 +218,7 @@ impl Agent for GreenDevAgent {
             "Implement this green optimization plan: {}\n\nAnalyze code, optimize algorithms, or improve resource usage for sustainability.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -217,7 +228,7 @@ impl Agent for GreenDevAgent {
             "Analyze these sustainability results: {}\n\nHow does this optimization impact energy consumption and environmental footprint?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }
