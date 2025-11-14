@@ -6,7 +6,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
+use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use crate::core::adapters::ai::KandilAI;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,7 +121,7 @@ pub struct QualityMetrics {
 }
 
 pub struct QaSimulation {
-    ai: KandilAI,
+    pub ai: KandilAI,
     test_plans: HashMap<String, TestPlan>,
     bug_reports: HashMap<String, BugReport>,
     quality_history: Vec<QualityReport>,

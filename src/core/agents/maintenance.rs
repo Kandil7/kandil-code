@@ -6,6 +6,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
+use crate::core::agents::ethics_security::Vulnerability;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaintenanceManager {
@@ -218,7 +219,7 @@ pub enum Status {
     Resolved,
     Closed,
     Reopened,
-    Won't Fix,
+    WontFix,
     Duplicate,
 }
 
@@ -603,11 +604,13 @@ impl MaintenanceManager {
         self.security_monitor.vulnerabilities = vec![
             Vulnerability {
                 id: "CVE-2023-1234".to_string(),
-                package: "old-lib".to_string(),
-                severity: "medium".to_string(),
                 title: "Outdated dependency vulnerability".to_string(),
                 description: "Dependency 'old-lib' version 1.2.3 has known vulnerabilities".to_string(),
+                severity: crate::core::agents::ethics_security::Severity::Medium,
+                cve_id: Some("CVE-2023-1234".to_string()),
+                owasp_category: Some("A06:2021-Vulnerable and Outdated Components".to_string()),
                 recommendation: "Update to version 1.3.5 or higher".to_string(),
+                cvss_score: Some(7.5),
             }
         ];
         
@@ -679,7 +682,7 @@ impl MaintenanceManager {
         
         let health_ok = matches!(self.health_monitor.overall_health, HealthStatus::Healthy | HealthStatus::Warning);
         let performance_ok = true; // Simplified check
-        let security_ok = self.security_monitor.vulnerabilities.iter().any(|v| v.severity == "critical") == false;
+        let security_ok = self.security_monitor.vulnerabilities.iter().any(|v| v.severity == crate::core::agents::ethics_security::Severity::Critical) == false;
         let backup_ok = self.backup_manager.backup_success_rate >= 95.0;
         
         health_ok && performance_ok && security_ok && backup_ok
