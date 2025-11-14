@@ -20,6 +20,12 @@ pub enum AIProvider {
     OpenAI,
 }
 
+#[async_trait::async_trait]
+pub trait AIProviderTrait: Send + Sync {
+    async fn chat(&self, message: &str) -> Result<String>;
+    async fn chat_with_context(&self, message: &str, workspace_path: Option<&str>) -> Result<String>;
+}
+
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -340,5 +346,18 @@ impl KandilAI {
                 error_text
             ))
         }
+    }
+}
+
+#[async_trait::async_trait]
+impl AIProviderTrait for KandilAI {
+    async fn chat(&self, message: &str) -> Result<String> {
+        // Call the existing chat method
+        self.chat(message).await
+    }
+
+    async fn chat_with_context(&self, message: &str, workspace_path: Option<&str>) -> Result<String> {
+        // Call the existing chat_with_context method
+        self.chat_with_context(message, workspace_path).await
     }
 }

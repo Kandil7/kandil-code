@@ -4,7 +4,7 @@
 //! architecture diagrams, and UI mocks to generate executable code
 
 use anyhow::Result;
-use image::{DynamicImage, ImageFormat};
+use image::{DynamicImage, GenericImageView};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -302,12 +302,13 @@ impl ImageProcessor {
 
     pub fn resize_image(&self, img: &DynamicImage, max_width: u32, max_height: u32) -> DynamicImage {
         let (width, height) = img.dimensions();
-        
+
         if width <= max_width && height <= max_height {
             return img.clone();
         }
 
-        let scale_factor = std::cmp::min(max_width as f32 / width as f32, max_height as f32 / height as f32);
+        // Use f32::min instead of std::cmp::min for floating point values
+        let scale_factor = (max_width as f32 / width as f32).min(max_height as f32 / height as f32);
         let new_width = (width as f32 * scale_factor) as u32;
         let new_height = (height as f32 * scale_factor) as u32;
 
@@ -317,7 +318,9 @@ impl ImageProcessor {
     pub fn detect_edges(&self, img: &DynamicImage) -> Result<DynamicImage> {
         // Apply edge detection filter
         // This is a simplified implementation
-        Ok(img.grayscale().invert())
+        let mut grayscale_img = img.grayscale();
+        image::imageops::invert(&mut grayscale_img);
+        Ok(grayscale_img)
     }
 }
 
