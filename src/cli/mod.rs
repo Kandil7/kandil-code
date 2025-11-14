@@ -855,6 +855,16 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
                 }
             }
         },
+        AgentSub::Documentation { sub: doc_cmd } => {
+            let doc_agent = crate::core::agents::DocumentationAgent::new(ai);
+            match doc_cmd {
+                DocumentationSubCommand::Generate { path } => {
+                    let report = doc_agent.generate_documentation_for_project(&path).await?;
+                    println!("Generated documentation for project at {}:", path);
+                    println!("{}", report);
+                }
+            }
+        },
         AgentSub::Simulate { sub: sim_cmd } => {
             match sim_cmd {
                 SimulateSubCommand::Pm { sub: pm_cmd } => {
