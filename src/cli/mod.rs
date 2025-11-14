@@ -805,7 +805,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
     match sub {
         AgentSub::Requirements { description } => {
             let requirements_agent = crate::core::agents::RequirementsAgent::new(ai);
-            let doc = requirements_agent
+            let _doc = requirements_agent
                 .generate_requirements_document(&description)
                 .await?;
             println!("Generated requirements document for: {}", description);
@@ -814,7 +814,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
         }
         AgentSub::Design { requirements } => {
             let design_agent = crate::core::agents::DesignAgent::new(ai);
-            let doc = design_agent.generate_design_document(&requirements).await?;
+            let _doc = design_agent.generate_design_document(&requirements).await?;
             println!(
                 "Generated design document based on requirements: {}",
                 requirements
@@ -893,7 +893,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
                 crate::core::agents::quality_assurance::QualityAssuranceSystem::new(ai);
             match qa_cmd {
                 QaSubCommand::FullSuite { project_path } => {
-                    let report = qa_system.run_full_qa_suite(&project_path).await?;
+                    let _report = qa_system.run_full_qa_suite(&project_path).await?;
                     println!("Full QA suite completed for project at {}:", project_path);
                     println!("{}", qa_system.generate_qa_report_md());
                 }
