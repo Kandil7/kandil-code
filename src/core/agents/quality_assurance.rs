@@ -249,6 +249,18 @@ pub enum ReadinessLevel {
     FullyReady,
 }
 
+impl std::fmt::Display for ReadinessLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadinessLevel::NotReady => write!(f, "Not Ready"),
+            ReadinessLevel::NeedsAttention => write!(f, "Needs Attention"),
+            ReadinessLevel::AlmostReady => write!(f, "Almost Ready"),
+            ReadinessLevel::Ready => write!(f, "Ready"),
+            ReadinessLevel::FullyReady => write!(f, "Fully Ready"),
+        }
+    }
+}
+
 impl QualityAssuranceSystem {
     pub fn new() -> Self {
         Self {
@@ -625,11 +637,32 @@ impl QualityAssuranceSystem {
     }
 
     pub fn generate_qa_report_md(&self) -> String {
+        // Calculate test pass rate as percentage
+        let test_pass_rate = {
+            let total_tests = self.test_suite.unit_tests.len() + self.test_suite.integration_tests.len() + self.test_suite.e2e_tests.len();
+            let passed_tests = self.test_suite.unit_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count() +
+                self.test_suite.integration_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count() +
+                self.test_suite.e2e_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count();
+            if total_tests > 0 {
+                (passed_tests as f64 / total_tests as f64) * 100.0
+            } else {
+                0.0
+            }
+        };
+
+        let total_tests_run = self.test_suite.unit_tests.len() + self.test_suite.integration_tests.len() + self.test_suite.e2e_tests.len();
+        let passed_tests = self.test_suite.unit_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count() +
+            self.test_suite.integration_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count() +
+            self.test_suite.e2e_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count();
+        let failed_tests = self.test_suite.unit_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count() +
+            self.test_suite.integration_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count() +
+            self.test_suite.e2e_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count();
+
         format!(
             r#"# Quality Assurance Report - Kandil Code v2.0
 
 ## Executive Summary
-- Overall Quality Score: {:.2}% 
+- Overall Quality Score: {:.2}%
 - Test Pass Rate: {:.2}%
 - Compliance Level: {:.2}%
 - Stability Score: {:.2}%
@@ -665,21 +698,24 @@ impl QualityAssuranceSystem {
 
 "#,
             self.code_quality_metrics.test_coverage,
+            test_pass_rate,
             self.compliance_checker.compliance_report.overall_compliance,
             self.stability_report.stability_score,
-            self.test_suite.unit_tests.len() + self.test_suite.integration_tests.len() + self.test_suite.e2e_tests.len(),
+            self.test_suite.unit_tests.len() +
+            self.test_suite.integration_tests.len() +
+            self.test_suite.e2e_tests.len(), // Total tests
             self.test_suite.unit_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count() +
             self.test_suite.integration_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count() +
-            self.test_suite.e2e_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count(),
+            self.test_suite.e2e_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count(), // Passed
             self.test_suite.unit_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count() +
             self.test_suite.integration_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count() +
-            self.test_suite.e2e_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count(),
-            0, // skipped
-            self.code_quality_metrics.test_coverage,
+            self.test_suite.e2e_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count(), // Failed
+            0, // Skipped - was using duplicated_lines here incorrectly
+            self.code_quality_metrics.test_coverage, // Test Coverage (using same as Overall Quality Score)
             self.code_quality_metrics.cyclomatic_complexity,
             self.code_quality_metrics.maintainability_index,
-            self.code_quality_metrics.code_smells,
-            self.code_quality_metrics.documentation_coverage,
+            self.code_quality_metrics.code_smells, // Code Smells
+            self.code_quality_metrics.documentation_coverage, // Documentation Coverage
             self.compliance_checker.compliance_report.critical_failures,
             self.compliance_checker.compliance_report.warnings,
             self.stability_report.uptime_percentage,
@@ -687,7 +723,7 @@ impl QualityAssuranceSystem {
             self.stability_report.mean_time_to_recovery,
             "See recommendations section for details", // Would list actual recommendations
             ReadinessLevel::Ready, // Would use the calculated value
-            "ready"
+            "ready"                 // for release status
         )
     }
 }
