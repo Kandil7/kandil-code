@@ -30,7 +30,13 @@ impl TrustLevel {
     }
 
     pub fn as_u8(&self) -> u8 {
-        *self as u8
+        match self {
+            TrustLevel::Paranoid => 1,
+            TrustLevel::Cautious => 2,
+            TrustLevel::Normal => 3,
+            TrustLevel::Adventurous => 4,
+            TrustLevel::Godmode => 5,
+        }
     }
 
     pub fn description(&self) -> &'static str {

@@ -33,8 +33,8 @@ pub struct ContextHistoryItem {
 }
 
 pub struct ContextManager {
-    /// Tree-sitter parser for code analysis
-    parser: Parser,
+    /// Language for tree-sitter
+    language: tree_sitter::Language,
     /// Language-specific queries for symbol extraction
     queries: HashMap<String, Query>,
     /// Memory compressor for history
@@ -43,17 +43,12 @@ pub struct ContextManager {
 
 impl ContextManager {
     pub fn new() -> Result<Self> {
-        let mut parser = Parser::new();
-        
-        // For now, we'll set up for a generic language - in practice, 
+        // For now, we'll set up for a generic language - in practice,
         // we'd need to configure for specific languages
         let language = tree_sitter_rust::language();
-        parser.set_language(&language).map_err(|e| {
-            anyhow::anyhow!("Failed to set parser language: {}", e)
-        })?;
 
         Ok(Self {
-            parser,
+            language,
             queries: HashMap::new(),
             memory_compressor: MemoryCompressor::new(),
         })
@@ -149,8 +144,14 @@ impl ContextManager {
     }
 
     fn extract_symbols_from_code(&self, code: &str) -> Result<Vec<String>> {
+        // Create a parser on-demand to avoid borrowing issues
+        let mut parser = Parser::new();
+        parser.set_language(self.language).map_err(|e| {
+            anyhow::anyhow!("Failed to set parser language: {}", e)
+        })?;
+
         // Use tree-sitter to parse the code and extract symbols
-        let tree = self.parser.parse(code, None).ok_or_else(|| {
+        let tree = parser.parse(code, None).ok_or_else(|| {
             anyhow::anyhow!("Failed to parse code")
         })?;
 
