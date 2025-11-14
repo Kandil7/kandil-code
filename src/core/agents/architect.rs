@@ -6,7 +6,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
+use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use crate::core::adapters::ai::KandilAI;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ pub struct ArchitectureDecisionRecord {
 }
 
 pub struct ArchitectSimulation {
-    ai: KandilAI,
+    pub ai: KandilAI,
     knowledge: ArchitecturePatterns,
     decision_log: Vec<ArchitectureDecision>,
 }

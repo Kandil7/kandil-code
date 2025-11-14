@@ -8,7 +8,7 @@ use crate::core::adapters::ai::KandilAI;
 use crate::utils::cost_tracking::CostTracker;
 
 pub struct TrackedAI {
-    ai: KandilAI,
+    pub ai: KandilAI,
     cost_tracker: Arc<CostTracker>,
 }
 
