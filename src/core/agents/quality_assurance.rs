@@ -5,6 +5,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::core::adapters::ai::AIProvider;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityAssuranceSystem {
@@ -12,6 +14,7 @@ pub struct QualityAssuranceSystem {
     pub code_quality_metrics: CodeQualityMetrics,
     pub compliance_checker: ComplianceChecker,
     pub stability_report: StabilityReport,
+    pub ai: Arc<dyn AIProvider>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -262,7 +265,7 @@ impl std::fmt::Display for ReadinessLevel {
 }
 
 impl QualityAssuranceSystem {
-    pub fn new() -> Self {
+    pub fn new(ai: Arc<dyn AIProvider>) -> Self {
         Self {
             test_suite: TestSuite {
                 unit_tests: vec![],
@@ -306,11 +309,12 @@ impl QualityAssuranceSystem {
                 performance_regression: false,
                 stability_score: 0.0,
             },
+            ai,
         }
     }
 
-    pub async fn run_full_qa_suite(&mut self) -> Result<QaReport> {
-        println!("Running comprehensive QA suite...");
+    pub async fn run_full_qa_suite(&mut self, project_path: &str) -> Result<QaReport> {
+        println!("Running comprehensive QA suite for project at {}...", project_path);
         
         // Run all test types
         self.run_unit_tests().await?;

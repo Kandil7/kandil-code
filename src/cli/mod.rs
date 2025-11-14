@@ -115,6 +115,21 @@ pub enum AgentSub {
         #[command(subcommand)]
         sub: DocumentationSubCommand,
     },
+    /// Manage releases
+    Release {
+        #[command(subcommand)]
+        sub: ReleaseSubCommand,
+    },
+    /// Run quality assurance checks
+    Qa {
+        #[command(subcommand)]
+        sub: QaSubCommand,
+    },
+    /// Manage system maintenance
+    Maintenance {
+        #[command(subcommand)]
+        sub: MaintenanceSubCommand,
+    },
     /// Professional role simulations
     Simulate {
         #[command(subcommand)]
@@ -137,6 +152,25 @@ pub enum AgentSub {
     },
 }
 
+pub enum MaintenanceSubCommand {
+    /// Run a health check for a system
+    HealthCheck {
+        /// Name of the system to check
+        system_name: String,
+    },
+}
+
+pub enum QaSubCommand {
+
+pub enum ReleaseSubCommand {
+    /// Run the full release process
+    FullProcess {
+        /// Version to release
+        version: String,
+    },
+}
+
+#[derive(Subcommand)]
 pub enum DocumentationSubCommand {
     /// Generate documentation for a project
     Generate {
@@ -856,12 +890,41 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
             }
         },
         AgentSub::Documentation { sub: doc_cmd } => {
-            let doc_agent = crate::core::agents::DocumentationAgent::new(ai);
+            let doc_agent = crate::core::agents::DocumentationGenerator::new(ai);
             match doc_cmd {
                 DocumentationSubCommand::Generate { path } => {
                     let report = doc_agent.generate_documentation_for_project(&path).await?;
                     println!("Generated documentation for project at {}:", path);
                     println!("{}", report);
+                }
+            }
+        },
+        AgentSub::Release { sub: release_cmd } => {
+            let mut release_manager = crate::core::agents::ReleaseManager::new(ai, "0.1.0".to_string()); // Placeholder version
+            match release_cmd {
+                ReleaseSubCommand::FullProcess { version } => {
+                    release_manager.version = version; // Update version from CLI arg
+                    release_manager.run_full_release_process().await?;
+                    println!("Full release process completed for version: {}", release_manager.version);
+                }
+            }
+        },
+        AgentSub::Qa { sub: qa_cmd } => {
+            let mut qa_system = crate::core::agents::QualityAssuranceSystem::new(ai);
+            match qa_cmd {
+                QaSubCommand::FullSuite { project_path } => {
+                    let report = qa_system.run_full_qa_suite(&project_path).await?;
+                    println!("Full QA suite completed for project at {}:", project_path);
+                    println!("{}", report.generate_qa_report_md());
+                }
+            }
+        },
+        AgentSub::Maintenance { sub: maintenance_cmd } => {
+            let mut maintenance_manager = crate::core::agents::MaintenanceManager::new(ai);
+            match maintenance_cmd {
+                MaintenanceSubCommand::HealthCheck { system_name } => {
+                    maintenance_manager.run_health_checks(&system_name).await?;
+                    println!("Health check completed for system: {}", system_name);
                 }
             }
         },

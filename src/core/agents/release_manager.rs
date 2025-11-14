@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use crate::core::adapters::ai::AIProvider;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReleaseManager {
@@ -18,6 +20,7 @@ pub struct ReleaseManager {
     pub performance_metrics: PerformanceMetrics,
     pub build_artifacts: Vec<BuildArtifact>,
     pub dependencies: DependencyInfo,
+    pub ai: Arc<dyn AIProvider>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,7 +106,7 @@ pub enum BuildStatus {
 }
 
 impl ReleaseManager {
-    pub fn new(version: String) -> Self {
+    pub fn new(ai: Arc<dyn AIProvider>, version: String) -> Self {
         Self {
             version,
             release_notes: ReleaseNotes {
@@ -165,6 +168,7 @@ impl ReleaseManager {
                 license_compliance: HashMap::new(),
                 dependency_tree: "".to_string(),
             },
+            ai,
         }
     }
 
@@ -417,7 +421,7 @@ Dependencies:
         )
     }
 
-    pub fn run_full_release_process(&mut self) -> Result<()> {
+    pub async fn run_full_release_process(&mut self) -> Result<()> {
         println!("Starting v{} release process...", self.version);
         
         self.run_security_audit()?;

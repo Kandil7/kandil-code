@@ -6,6 +6,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::core::agents::ethics_security::Vulnerability;
+use crate::core::adapters::ai::AIProvider;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaintenanceManager {
@@ -15,6 +17,7 @@ pub struct MaintenanceManager {
     pub issue_tracker: IssueTracker,
     pub performance_analyzer: PerformanceAnalyzer,
     pub security_monitor: SecurityMonitor,
+    pub ai: Arc<dyn AIProvider>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -392,7 +395,7 @@ pub enum IntelligenceLevel {
 }
 
 impl MaintenanceManager {
-    pub fn new() -> Self {
+    pub fn new(ai: Arc<dyn AIProvider>) -> Self {
         Self {
             health_monitor: HealthMonitor {
                 checks: vec![],
@@ -464,11 +467,12 @@ impl MaintenanceManager {
                     intelligence_level: IntelligenceLevel::Standard,
                 },
             },
+            ai,
         }
     }
 
-    pub async fn run_health_checks(&mut self) -> Result<()> {
-        println!("Running system health checks...");
+    pub async fn run_health_checks(&mut self, system_name: &str) -> Result<()> {
+        println!("Running system health checks for {}...", system_name);
         
         // In a real implementation, this would check actual system components
         // For simulation, we'll add mock checks
