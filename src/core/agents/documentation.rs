@@ -392,7 +392,7 @@ Licensed under the {} License.
 
     fn create_nav_links(&self) -> String {
         self.content_sections.iter()
-            .map(|section| format!(r#"<li><a href="#{}">{}</a></li>"#, section.id, section.title))
+            .map(|section| format!("<li><a href=\"#{}\">{}</a></li>", section.id, section.title))
             .collect::<Vec<_>>()
             .join("\n")
     }
