@@ -4,13 +4,14 @@
 
 use anyhow::Result;
 use std::path::Path;
+use std::sync::Arc;
 
 pub struct TestGenerator {
-    ai_client: crate::core::adapters::ai::KandilAI,
+    ai_client: Arc<crate::core::adapters::ai::KandilAI>,
 }
 
 impl TestGenerator {
-    pub fn new(ai_client: crate::core::adapters::ai::KandilAI) -> Self {
+    pub fn new(ai_client: Arc<crate::core::adapters::ai::KandilAI>) -> Self {
         Self {
             ai_client,
         }
