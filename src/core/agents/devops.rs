@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DevOpsSimulation {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub infra_templates: std::collections::HashMap<String, String>,
 }
 
@@ -25,7 +26,7 @@ pub struct DrillReport {
 }
 
 impl DevOpsSimulation {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             ai,
             infra_templates: std::collections::HashMap::new(),

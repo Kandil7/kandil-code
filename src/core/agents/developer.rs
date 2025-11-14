@@ -1,13 +1,14 @@
 //! Developer simulation agent
-//! 
+//!
 //! Agent that simulates the role of a software developer
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState};
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PairProgrammingSession {
@@ -76,14 +77,14 @@ pub struct ReviewComment {
 }
 
 pub struct DeveloperSimulation {
-    pub ai: KandilAI,
+    pub ai: Arc<KandilAI>,
     pub current_project: String,
     pub session_history: HashMap<String, PairProgrammingSession>,
     pub implementation_progress: HashMap<String, ImplementationProgress>,
 }
 
 impl DeveloperSimulation {
-    pub fn new(ai: KandilAI, project_name: String) -> Self {
+    pub fn new(ai: Arc<KandilAI>, project_name: String) -> Self {
         Self {
             ai,
             current_project: project_name,
@@ -92,7 +93,11 @@ impl DeveloperSimulation {
         }
     }
 
-    pub async fn implement_feature(&mut self, feature_spec: &str, file_path: &str) -> Result<String> {
+    pub async fn implement_feature(
+        &mut self,
+        feature_spec: &str,
+        file_path: &str,
+    ) -> Result<String> {
         let prompt = format!(
             r#"Implement the following feature in {}: 
             {}
@@ -110,27 +115,33 @@ impl DeveloperSimulation {
         );
 
         let implementation = self.ai.chat(&prompt).await?;
-        
+
         // Add to implementation progress
-        let progress = self.implementation_progress.entry(file_path.to_string()).or_insert_with(|| {
-            ImplementationProgress {
+        let progress = self
+            .implementation_progress
+            .entry(file_path.to_string())
+            .or_insert_with(|| ImplementationProgress {
                 completed_features: vec![],
                 in_progress_features: vec![],
                 blocked_features: vec![],
                 code_coverage: 0.0,
                 bugs_found: 0,
                 estimated_completion: "Unknown".to_string(),
-            }
-        });
-        
+            });
+
         progress.in_progress_features.push(feature_spec.to_string());
-        
+
         Ok(implementation)
     }
 
-    pub async fn start_pair_programming(&mut self, partner: &str, task: &str, file: &str) -> Result<String> {
+    pub async fn start_pair_programming(
+        &mut self,
+        partner: &str,
+        task: &str,
+        file: &str,
+    ) -> Result<String> {
         let session_id = format!("PPS-{}", self.session_history.len() + 1);
-        
+
         let session = PairProgrammingSession {
             participants: vec!["Developer Simulation".to_string(), partner.to_string()],
             code_file: file.to_string(),
@@ -140,9 +151,9 @@ impl DeveloperSimulation {
             features_implemented: vec![],
             duration_minutes: 0,
         };
-        
+
         self.session_history.insert(session_id.clone(), session);
-        
+
         Ok(format!("Started pair programming session: {}", session_id))
     }
 
@@ -160,17 +171,15 @@ impl DeveloperSimulation {
         );
 
         let findings = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
-        Ok(vec![
-            Bug {
-                id: "BUG-001".to_string(),
-                description: "Potential null pointer access".to_string(),
-                severity: Severity::High,
-                location: format!("{}:line 25", file_path),
-                fix_suggestion: "Add null check before access".to_string(),
-            }
-        ])
+        Ok(vec![Bug {
+            id: "BUG-001".to_string(),
+            description: "Potential null pointer access".to_string(),
+            severity: Severity::High,
+            location: format!("{}:line 25", file_path),
+            fix_suggestion: "Add null check before access".to_string(),
+        }])
     }
 
     pub async fn generate_unit_tests(&self, function_name: &str, language: &str) -> Result<String> {
@@ -207,7 +216,7 @@ impl Agent for DeveloperSimulation {
             "As a Software Developer, given this development task: {}\n\nPlan the next implementation step. Consider code structure, dependencies, and testing approach.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -217,7 +226,7 @@ impl Agent for DeveloperSimulation {
             "Implement this development plan: {}\n\nWrite code, fix issues, or refactor as needed.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -227,7 +236,7 @@ impl Agent for DeveloperSimulation {
             "Analyze this development output: {}\n\nHow does this implementation meet the requirements? What improvements are needed?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityReport {
@@ -82,11 +83,11 @@ pub struct EthicalRisk {
 }
 
 pub struct EthicsSecurityAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
 }
 
 impl EthicsSecurityAgent {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self { ai }
     }
 

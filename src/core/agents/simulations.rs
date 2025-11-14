@@ -129,11 +129,11 @@ impl Agent for ProjectManagerSimulation {
 }
 
 pub struct BusinessAnalystSimulation {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
 }
 
 impl BusinessAnalystSimulation {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self { ai }
     }
 

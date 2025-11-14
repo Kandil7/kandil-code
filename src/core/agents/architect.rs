@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArchitecturePatterns {
@@ -60,13 +61,13 @@ pub struct ArchitectureDecisionRecord {
 }
 
 pub struct ArchitectSimulation {
-    pub ai: KandilAI,
+    pub ai: Arc<KandilAI>,
     knowledge: ArchitecturePatterns,
     decision_log: Vec<ArchitectureDecision>,
 }
 
 impl ArchitectSimulation {
-    pub fn new(ai: KandilAI) -> Result<Self> {
+    pub fn new(ai: Arc<KandilAI>) -> Result<Self> {
         // Load architecture patterns from data
         let mut patterns = HashMap::new();
         

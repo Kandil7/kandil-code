@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImprovementPlan {
@@ -49,13 +50,13 @@ pub struct SystemAnalysis {
 }
 
 pub struct MetaAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub improvement_history: Vec<ImprovementPlan>,
     pub system_metrics: HashMap<String, f64>,
 }
 
 impl MetaAgent {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             ai,
             improvement_history: Vec::new(),

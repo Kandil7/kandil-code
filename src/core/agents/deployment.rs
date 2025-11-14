@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeploymentPlan {
@@ -55,7 +56,7 @@ pub struct DeploymentResult {
 }
 
 pub struct DeploymentAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub environment_configs: HashMap<String, EnvironmentConfig>,
 }
 
@@ -70,7 +71,7 @@ pub struct EnvironmentConfig {
 }
 
 impl DeploymentAgent {
-    pub fn new(ai: KandilAI) -> Result<Self> {
+    pub fn new(ai: Arc<KandilAI>) -> Result<Self> {
         let mut env_configs = HashMap::new();
         
         // Add default environment configurations
