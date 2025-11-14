@@ -119,8 +119,57 @@ impl RefactorEngine {
 pub struct RefactorParams {
     pub old_name: Option<String>,
     pub new_name: Option<String>,
-    pub start_line: Option<usize>,
-    pub end_line: Option<usize>,
-    pub function_name: Option<String>,
-    pub visibility: Option<String>,
+    start_line: Option<usize>,
+    end_line: Option<usize>,
+    function_name: Option<String>,
+    visibility: Option<String>,
+}
+
+impl RefactorParams {
+    pub fn new() -> Self {
+        Self {
+            old_name: None,
+            new_name: None,
+            start_line: None,
+            end_line: None,
+            function_name: None,
+            visibility: None,
+        }
+    }
+
+    pub fn start_line(&self) -> Option<usize> {
+        self.start_line
+    }
+
+    pub fn end_line(&self) -> Option<usize> {
+        self.end_line
+    }
+
+    pub fn function_name(&self) -> Option<&str> {
+        self.function_name.as_deref()
+    }
+
+    pub fn visibility(&self) -> Option<&str> {
+        self.visibility.as_deref()
+    }
+
+    pub fn with_start_line(mut self, start_line: usize) -> Self {
+        self.start_line = Some(start_line);
+        self
+    }
+
+    pub fn with_end_line(mut self, end_line: usize) -> Self {
+        self.end_line = Some(end_line);
+        self
+    }
+
+    pub fn with_function_name<T: Into<String>>(mut self, function_name: T) -> Self {
+        self.function_name = Some(function_name.into());
+        self
+    }
+
+    pub fn with_visibility<T: Into<String>>(mut self, visibility: T) -> Self {
+        self.visibility = Some(visibility.into());
+        self
+    }
 }
