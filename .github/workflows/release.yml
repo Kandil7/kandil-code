@@ -56,18 +56,29 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - run: cargo build --release --target ${{ matrix.target }}
-      - shell: bash
+      - if: runner.os == 'Linux'
+        shell: bash
         run: |
           set -e
           out=target/${{ matrix.target }}/release/${{ matrix.bin }}
           name=kandil-${{ matrix.target }}
-          if [ "${{ matrix.pkg }}" = "zip" ]; then
-            zip -j ${name}.zip "$out"
-            echo $(shasum -a 256 ${name}.zip | cut -d ' ' -f1) > ${name}.sha256
-          else
-            tar czf ${name}.tar.gz -C target/${{ matrix.target }}/release ${{ matrix.bin }}
-            echo $(shasum -a 256 ${name}.tar.gz | cut -d ' ' -f1) > ${name}.sha256
-          fi
+          tar czf ${name}.tar.gz -C target/${{ matrix.target }}/release ${{ matrix.bin }}
+          sha256sum ${name}.tar.gz | cut -d ' ' -f1 > ${name}.sha256
+      - if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          out=target/${{ matrix.target }}/release/${{ matrix.bin }}
+          name=kandil-${{ matrix.target }}
+          tar czf ${name}.tar.gz -C target/${{ matrix.target }}/release ${{ matrix.bin }}
+          shasum -a 256 ${name}.tar.gz | cut -d ' ' -f1 > ${name}.sha256
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = "target/${{ matrix.target }}/release/${{ matrix.bin }}"
+          $name = "kandil-${{ matrix.target }}"
+          Compress-Archive -LiteralPath $out -DestinationPath "$name.zip"
+          (Get-FileHash -Algorithm SHA256 "$name.zip").Hash.ToLower() | Out-File "$name.sha256" -NoNewline
       - uses: softprops/action-gh-release@v2
         with:
           files: |
