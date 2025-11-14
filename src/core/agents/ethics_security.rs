@@ -5,7 +5,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
+use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use crate::core::adapters::ai::KandilAI;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub struct Vulnerability {
     pub cvss_score: Option<f32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Severity {
     Info,
     Low,

@@ -6,7 +6,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
+use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use crate::core::adapters::ai::KandilAI;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
