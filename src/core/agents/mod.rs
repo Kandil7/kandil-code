@@ -1,5 +1,5 @@
 //! Agent implementations
-//! 
+//!
 //! Contains specialized agents for various development tasks
 //! This will be expanded starting in Phase 6
 
@@ -30,6 +30,7 @@ pub mod documentation;
 pub mod release_manager;
 pub mod quality_assurance;
 pub mod maintenance;
+pub mod consensus;
 
 pub use requirements::RequirementsAgent;
 pub use design::DesignAgent;
@@ -50,3 +51,4 @@ pub use i18n::I18nAssistant;
 pub use a11y::A11yAssistant;
 pub use collaboration_realtime::RealTimeCollaboration;
 pub use ide_extension::IdeExtension;
+pub use consensus::{ConsensusOrchestrator, SpecializedAgent, Solution, CodeAgent as ConsensusCodeAgent, DesignAgent as ConsensusDesignAgent, SecurityAgent as ConsensusSecurityAgent};

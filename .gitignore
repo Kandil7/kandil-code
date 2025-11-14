@@ -54,3 +54,5 @@ Thumbs.db
 ehthumbs.db
 Icon?
 Thumbs.db
+.gemini/
+gha-creds-*.json
