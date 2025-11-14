@@ -452,34 +452,7 @@ pub enum DeveloperSubCommand {
     },
 }
 
-#[derive(Subcommand)]
-pub enum QaSubCommand {
-    /// Generate test plan
-    Plan {
-        /// Feature specification to test
-        feature: String,
-        /// Priority of the test plan
-        priority: String,
-    },
-    /// Execute a test
-    Execute {
-        /// Test plan ID
-        plan_id: String,
-        /// Test scenario ID
-        scenario_id: String,
-    },
-    /// Report a bug
-    Report {
-        /// Bug title
-        title: String,
-        /// Bug description
-        description: String,
-        /// Bug severity
-        severity: String,
-        /// Environment where bug was found
-        environment: String,
-    },
-}
+
 
 #[derive(Subcommand)]
 pub enum CollaborateSubCommand {
@@ -842,10 +815,7 @@ async fn create_project(template: &str, name: &str) -> Result<()> {
     Ok(())
 }
 
-async fn handle_agent(sub: AgentSub) -> Result<()> {
-    let config = Config::load()?;
-    let factory = AIProviderFactory::new(config.clone());
-    let ai = factory.create_ai(&config.ai_provider, &config.ai_model)?;
+    let ai = Arc::new(factory.create_ai(&config.ai_provider, &config.ai_model)?);
     
     match sub {
         AgentSub::Requirements { description } => {
@@ -896,7 +866,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
             }
         },
         AgentSub::Documentation { sub: doc_cmd } => {
-            let doc_agent = crate::core::agents::DocumentationGenerator::new(ai);
+            let doc_agent = crate::core::agents::documentation::DocumentationGenerator::new(ai);
             match doc_cmd {
                 DocumentationSubCommand::Generate { path } => {
                     let report = doc_agent.generate_documentation_for_project(&path).await?;
@@ -906,7 +876,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
             }
         },
         AgentSub::Release { sub: release_cmd } => {
-            let mut release_manager = crate::core::agents::ReleaseManager::new(ai, "0.1.0".to_string()); // Placeholder version
+            let mut release_manager = crate::core::agents::release_manager::ReleaseManager::new(ai, "0.1.0".to_string()); // Placeholder version
             match release_cmd {
                 ReleaseSubCommand::FullProcess { version } => {
                     release_manager.version = version; // Update version from CLI arg
@@ -916,7 +886,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
             }
         },
         AgentSub::Qa { sub: qa_cmd } => {
-            let mut qa_system = crate::core::agents::QualityAssuranceSystem::new(ai);
+            let mut qa_system = crate::core::agents::quality_assurance::QualityAssuranceSystem::new(ai);
             match qa_cmd {
                 QaSubCommand::FullSuite { project_path } => {
                     let report = qa_system.run_full_qa_suite(&project_path).await?;
@@ -926,7 +896,7 @@ async fn handle_agent(sub: AgentSub) -> Result<()> {
             }
         },
         AgentSub::Maintenance { sub: maintenance_cmd } => {
-            let mut maintenance_manager = crate::core::agents::MaintenanceManager::new(ai);
+            let mut maintenance_manager = crate::core::agents::maintenance::MaintenanceManager::new(ai);
             match maintenance_cmd {
                 MaintenanceSubCommand::HealthCheck { system_name } => {
                     maintenance_manager.run_health_checks(&system_name).await?;

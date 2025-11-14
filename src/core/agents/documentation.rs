@@ -6,7 +6,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use crate::core::adapters::ai::AIProvider;
+use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,7 +15,7 @@ pub struct DocumentationGenerator {
     pub content_sections: Vec<DocumentationSection>,
     pub assets: Vec<Asset>,
     pub formats: Vec<OutputFormat>,
-    pub ai: Arc<dyn AIProvider>,
+    pub ai: Arc<KandilAI>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,7 +99,7 @@ pub struct DocConfig {
 }
 
 impl DocumentationGenerator {
-    pub fn new(ai: Arc<dyn AIProvider>) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             project_info: ProjectInfo::default(), // Will be populated later
             content_sections: vec![],

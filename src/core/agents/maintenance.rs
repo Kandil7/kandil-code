@@ -6,7 +6,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::core::agents::ethics_security::Vulnerability;
-use crate::core::adapters::ai::AIProvider;
+use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,7 +17,7 @@ pub struct MaintenanceManager {
     pub issue_tracker: IssueTracker,
     pub performance_analyzer: PerformanceAnalyzer,
     pub security_monitor: SecurityMonitor,
-    pub ai: Arc<dyn AIProvider>,
+    pub ai: Arc<KandilAI>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -395,7 +395,7 @@ pub enum IntelligenceLevel {
 }
 
 impl MaintenanceManager {
-    pub fn new(ai: Arc<dyn AIProvider>) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             health_monitor: HealthMonitor {
                 checks: vec![],

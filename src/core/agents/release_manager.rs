@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use crate::core::adapters::ai::AIProvider;
+use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,7 +20,7 @@ pub struct ReleaseManager {
     pub performance_metrics: PerformanceMetrics,
     pub build_artifacts: Vec<BuildArtifact>,
     pub dependencies: DependencyInfo,
-    pub ai: Arc<dyn AIProvider>,
+    pub ai: Arc<KandilAI>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,7 +106,7 @@ pub enum BuildStatus {
 }
 
 impl ReleaseManager {
-    pub fn new(ai: Arc<dyn AIProvider>, version: String) -> Self {
+    pub fn new(ai: Arc<KandilAI>, version: String) -> Self {
         Self {
             version,
             release_notes: ReleaseNotes {

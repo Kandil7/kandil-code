@@ -5,7 +5,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::adapters::ai::AIProvider;
+use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -14,7 +14,7 @@ pub struct QualityAssuranceSystem {
     pub code_quality_metrics: CodeQualityMetrics,
     pub compliance_checker: ComplianceChecker,
     pub stability_report: StabilityReport,
-    pub ai: Arc<dyn AIProvider>,
+    pub ai: Arc<KandilAI>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -265,7 +265,7 @@ impl std::fmt::Display for ReadinessLevel {
 }
 
 impl QualityAssuranceSystem {
-    pub fn new(ai: Arc<dyn AIProvider>) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             test_suite: TestSuite {
                 unit_tests: vec![],
