@@ -7,10 +7,28 @@ use dashmap::DashMap;
 
 #[derive(Debug, Clone)]
 pub struct UsageRecord {
-    pub tokens_input: u32,
-    pub tokens_output: u32,
-    pub cost_usd: f64,
-    pub timestamp: std::time::SystemTime,
+    tokens_input: u32,
+    tokens_output: u32,
+    cost_usd: f64,
+    timestamp: std::time::SystemTime,
+}
+
+impl UsageRecord {
+    pub fn tokens_input(&self) -> u32 {
+        self.tokens_input
+    }
+
+    pub fn tokens_output(&self) -> u32 {
+        self.tokens_output
+    }
+
+    pub fn cost_usd(&self) -> f64 {
+        self.cost_usd
+    }
+
+    pub fn timestamp(&self) -> std::time::SystemTime {
+        self.timestamp
+    }
 }
 
 #[derive(Debug)]
@@ -101,10 +119,10 @@ impl CostTracker {
 
     pub fn get_total_cost(&self, provider: &str) -> f64 {
         match provider {
-            "openai" => self.openai.iter().map(|record| record.value().cost_usd).sum(),
-            "claude" => self.anthropic.iter().map(|record| record.value().cost_usd).sum(),
-            "qwen" => self.qwen.iter().map(|record| record.value().cost_usd).sum(),
-            "ollama" => self.ollama.iter().map(|record| record.value().cost_usd).sum(),
+            "openai" => self.openai.iter().map(|record| record.value().cost_usd()).sum(),
+            "claude" => self.anthropic.iter().map(|record| record.value().cost_usd()).sum(),
+            "qwen" => self.qwen.iter().map(|record| record.value().cost_usd()).sum(),
+            "ollama" => self.ollama.iter().map(|record| record.value().cost_usd()).sum(),
             _ => 0.0,
         }
     }
@@ -117,9 +135,9 @@ impl CostTracker {
                 let mut total_output = 0;
                 let mut total_cost = 0.0;
                 for record in self.openai.iter() {
-                    total_input += record.value().tokens_input as u64;
-                    total_output += record.value().tokens_output as u64;
-                    total_cost += record.value().cost_usd;
+                    total_input += record.value().tokens_input() as u64;
+                    total_output += record.value().tokens_output() as u64;
+                    total_cost += record.value().cost_usd();
                 }
                 (total_input, total_output, total_cost)
             },
@@ -128,9 +146,9 @@ impl CostTracker {
                 let mut total_output = 0;
                 let mut total_cost = 0.0;
                 for record in self.anthropic.iter() {
-                    total_input += record.value().tokens_input as u64;
-                    total_output += record.value().tokens_output as u64;
-                    total_cost += record.value().cost_usd;
+                    total_input += record.value().tokens_input() as u64;
+                    total_output += record.value().tokens_output() as u64;
+                    total_cost += record.value().cost_usd();
                 }
                 (total_input, total_output, total_cost)
             },
@@ -139,9 +157,9 @@ impl CostTracker {
                 let mut total_output = 0;
                 let mut total_cost = 0.0;
                 for record in self.qwen.iter() {
-                    total_input += record.value().tokens_input as u64;
-                    total_output += record.value().tokens_output as u64;
-                    total_cost += record.value().cost_usd;
+                    total_input += record.value().tokens_input() as u64;
+                    total_output += record.value().tokens_output() as u64;
+                    total_cost += record.value().cost_usd();
                 }
                 (total_input, total_output, total_cost)
             },
@@ -150,9 +168,9 @@ impl CostTracker {
                 let mut total_output = 0;
                 let mut total_cost = 0.0;
                 for record in self.ollama.iter() {
-                    total_input += record.value().tokens_input as u64;
-                    total_output += record.value().tokens_output as u64;
-                    total_cost += record.value().cost_usd;
+                    total_input += record.value().tokens_input() as u64;
+                    total_output += record.value().tokens_output() as u64;
+                    total_cost += record.value().cost_usd();
                 }
                 (total_input, total_output, total_cost)
             },

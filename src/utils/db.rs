@@ -5,6 +5,8 @@
 use anyhow::Result;
 use rusqlite::{Connection, params};
 use rusqlite_migration::{Migrations, M};
+use rusqlite::OptionalExtension;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
@@ -21,7 +23,7 @@ pub struct Project {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Memory {
     pub id: i64,
     pub project_id: String,
@@ -49,7 +51,7 @@ pub struct Database {
 
 impl Database {
     pub fn new(db_path: &str) -> Result<Self> {
-        let conn = Connection::open(db_path)?;
+        let mut conn = Connection::open(db_path)?;
         
         // Run migrations
         let migrations = Migrations::new(vec![
@@ -99,7 +101,7 @@ impl Database {
             )
         ]);
 
-        migrations.to_latest(&conn)?;
+        migrations.to_latest(&mut conn)?;
 
         Ok(Self { conn })
     }

@@ -8,10 +8,24 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 pub struct RefactorOperation {
     pub file_path: String,
-    pub original_code: String,
+    original_code: String,
     pub refactored_code: String,
-    pub operation_type: String, // e.g., "rename_variable", "extract_function", etc.
-    pub description: String,
+    operation_type: String, // e.g., "rename_variable", "extract_function", etc.
+    description: String,
+}
+
+impl RefactorOperation {
+    pub fn original_code(&self) -> &str {
+        &self.original_code
+    }
+
+    pub fn operation_type(&self) -> &str {
+        &self.operation_type
+    }
+
+    pub fn description(&self) -> &str {
+        &self.description
+    }
 }
 
 pub struct RefactorEngine {
