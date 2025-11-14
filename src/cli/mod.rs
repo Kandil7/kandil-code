@@ -744,7 +744,8 @@ async fn chat(message: String) -> Result<()> {
     let config = Config::load()?;
     let factory = AIProviderFactory::new(config.clone());
     let ai = factory.create_ai(&config.ai_provider, &config.ai_model)?;
-    let tracked_ai = crate::core::adapters::TrackedAI::new(ai, factory.get_cost_tracker());
+    let tracked_ai =
+        crate::core::adapters::TrackedAI::new(Arc::new(ai), factory.get_cost_tracker());
 
     let response = tracked_ai.chat(&message).await?;
     println!("{}", response);
@@ -1500,9 +1501,10 @@ async fn handle_refactor(sub: RefactorSub) -> Result<()> {
 async fn handle_test(sub: TestSub) -> Result<()> {
     let config = Config::load()?;
     let factory = AIProviderFactory::new(config.clone());
-    let ai = factory.create_ai(&config.ai_provider, &config.ai_model)?;
-    let tracked_ai = crate::core::adapters::TrackedAI::new(ai, factory.get_cost_tracker());
-    let generator = TestGenerator::new(tracked_ai.ai.clone()); // Using the underlying AI for now
+    let ai = Arc::new(factory.create_ai(&config.ai_provider, &config.ai_model)?);
+    let tracked_ai = crate::core::adapters::TrackedAI::new(ai.clone(), factory.get_cost_tracker());
+
+    let generator = TestGenerator::new((*tracked_ai.ai).clone()); // Using the underlying AI for now
 
     match sub {
         TestSub::Generate { file, framework } => {
