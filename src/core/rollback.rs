@@ -76,9 +76,9 @@ impl SessionManager {
             // Maintain maximum checkpoints
             if checkpoints.len() > self.max_checkpoints {
                 // Remove oldest checkpoint
-                let mut sorted: Vec<_> = checkpoints.iter().collect();
-                sorted.sort_by(|a, b| a.1.timestamp.cmp(&b.1.timestamp));
-                
+                let mut sorted: Vec<_> = checkpoints.iter().map(|(k, v)| (k.clone(), v.timestamp)).collect();
+                sorted.sort_by(|a, b| a.1.cmp(&b.1));
+
                 if let Some(oldest_key) = sorted.first().map(|(k, _)| k.clone()) {
                     checkpoints.remove(&oldest_key);
                 }
@@ -120,30 +120,35 @@ impl SessionManager {
     }
 
     async fn add_directory_snapshots(&self, dir_path: &Path, snapshots: &mut HashMap<String, FileSnapshot>) -> Result<()> {
-        let mut entries = tokio::fs::read_dir(dir_path).await?;
-        while let Some(entry) = entries.next_entry().await? {
-            let path = entry.path();
-            
-            if path.is_file() && self.is_code_file(&path) {
-                let content = fs::read_to_string(&path).await?;
-                let hash = self.calculate_content_hash(&content);
-                let metadata = fs::metadata(&path).await?;
-                let last_modified = metadata.modified().unwrap_or(std::time::SystemTime::now());
-                
-                let snapshot = FileSnapshot {
-                    path: path.to_string_lossy().to_string(),
-                    content,
-                    hash,
-                    last_modified,
-                };
-                
-                snapshots.insert(path.to_string_lossy().to_string(), snapshot);
-            } else if path.is_dir() && path.file_name().map_or(true, |n| n != ".git") {
-                // Skip .git directory to avoid massive snapshots
-                self.add_directory_snapshots(&path, snapshots).await?;
+        // Use a work queue to avoid recursion issues
+        let mut work_queue = vec![dir_path.to_path_buf()];
+
+        while let Some(current_dir) = work_queue.pop() {
+            let mut entries = tokio::fs::read_dir(&current_dir).await?;
+            while let Some(entry) = entries.next_entry().await? {
+                let path = entry.path();
+
+                if path.is_file() && self.is_code_file(&path) {
+                    let content = fs::read_to_string(&path).await?;
+                    let hash = self.calculate_content_hash(&content);
+                    let metadata = fs::metadata(&path).await?;
+                    let last_modified = metadata.modified().unwrap_or(std::time::SystemTime::now());
+
+                    let snapshot = FileSnapshot {
+                        path: path.to_string_lossy().to_string(),
+                        content,
+                        hash,
+                        last_modified,
+                    };
+
+                    snapshots.insert(path.to_string_lossy().to_string(), snapshot);
+                } else if path.is_dir() && path.file_name().map_or(true, |n| n != ".git") {
+                    // Skip .git directory to avoid massive snapshots
+                    work_queue.push(path);
+                }
             }
         }
-        
+
         Ok(())
     }
 
@@ -264,18 +269,18 @@ impl SessionManager {
 
     pub async fn cleanup_old_checkpoints(&self, keep_last_n: usize) -> Result<usize> {
         let mut checkpoints = self.checkpoints.write().await;
-        let mut sorted: Vec<_> = checkpoints.iter().collect();
-        
-        sorted.sort_by(|a, b| b.1.timestamp.cmp(&a.1.timestamp));
-        
+        let mut sorted: Vec<_> = checkpoints.iter().map(|(k, v)| (k.clone(), v.timestamp)).collect();
+
+        sorted.sort_by(|a, b| b.1.cmp(&a.1));
+
         let to_remove = sorted.len().saturating_sub(keep_last_n);
         let mut removed_count = 0;
-        
+
         for i in 0..to_remove {
             if i < sorted.len() {
-                let key = sorted[i].0.clone();
-                checkpoints.remove(&key);
-                removed_count += 1;
+                if checkpoints.remove(&sorted[i].0).is_some() {
+                    removed_count += 1;
+                }
             }
         }
         
@@ -301,7 +306,7 @@ impl SessionManager {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SessionMetadata {
     pub id: String,
     pub start_time: std::time::SystemTime,
