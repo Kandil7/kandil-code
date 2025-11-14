@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
-use crate::core::agents::{DevOpsSimulation, ScrumSimulation, I18nAssistant, A11yAssistant};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollaborationSession {
@@ -85,6 +84,7 @@ pub struct SessionPermissions {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RealTimeCollaboration {
     pub sessions: Arc<Mutex<HashMap<String, CollaborationSession>>>,
+    #[serde(skip)]
     pub change_broadcasters: HashMap<String, broadcast::Sender<DocumentChange>>,
     pub active_users: HashMap<String, UserStatus>,
 }
