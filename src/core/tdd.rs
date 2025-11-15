@@ -8,7 +8,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::core::agents::base::{Agent, AgentState, AgentResult};
+use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::AIProviderTrait;
 
 #[derive(Debug)]

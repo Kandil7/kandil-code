@@ -3,8 +3,7 @@
 //! Contains modules for monitoring system health and performance.
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use serde::Serialize;
 use tokio::time::Instant;
 use sysinfo::SystemExt;
 
