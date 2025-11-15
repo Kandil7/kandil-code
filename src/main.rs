@@ -7,6 +7,7 @@ use clap::Parser;
 use env_logger::Env;
 
 mod cli;
+mod common;
 mod config;
 mod core;
 mod errors;
