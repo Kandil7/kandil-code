@@ -2,12 +2,10 @@
 //!
 //! Implements semantic similarity-based caching for AI responses.
 
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use tiktoken_rs::ChatCompletionRequestMessage;
 
 // We'll use a simple embedding approach for now - in production,
 // we'd want to use a proper embedding model
@@ -22,13 +20,25 @@ pub struct SemanticCache {
     exact_store: Arc<DashMap<u64, CacheEntry>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct CacheEntry {
     response: String,
     tokens: usize,
     hit_count: AtomicU64,
     last_access: AtomicU64,
     created_at: std::time::SystemTime,
+}
+
+impl Clone for CacheEntry {
+    fn clone(&self) -> Self {
+        CacheEntry {
+            response: self.response.clone(),
+            tokens: self.tokens,
+            hit_count: AtomicU64::new(self.hit_count.load(Ordering::Relaxed)),
+            last_access: AtomicU64::new(self.last_access.load(Ordering::Relaxed)),
+            created_at: self.created_at,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -199,10 +209,12 @@ impl SemanticCache {
 
     fn count_tokens(&self, text: &str) -> usize {
         // Use tiktoken_rs to count tokens accurately
-        match tiktoken_rs::num_tokens_from_messages("gpt-3.5-turbo", &[(
-            "user".to_string(),
-            text.to_string(),
-        )]) {
+        match num_tokens_from_messages("gpt-3.5-turbo", &[ChatCompletionRequestMessage {
+            role: "user".to_string(),
+            content: Some(text.to_string()),
+            name: None,
+            function_call: None,
+        }]) {
             Ok(count) => count,
             Err(_) => {
                 // Fallback to a rough character-based estimate if token counting fails
@@ -210,7 +222,6 @@ impl SemanticCache {
             }
         }
     }
-
     fn is_expired(&self, created_at: &std::time::SystemTime) -> bool {
         if self.config.ttl_seconds == 0 {
             return false; // No TTL

@@ -1826,8 +1826,6 @@ async fn download_model(
 }
 
 async fn benchmark_model(name: &str, _format: &str) -> Result<()> {
-    
-
     println!("🔍 Benchmarking model: {}", name);
 
     // Skip actual benchmarking in this implementation since we don't have

@@ -2,7 +2,7 @@
 //!
 //! Analyzes user prompts to determine complexity level for optimal model selection.
 
-use tiktoken_rs::num_tokens_from_messages;
+use tiktoken_rs::{num_tokens_from_messages, ChatCompletionRequestMessage};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskComplexity {
@@ -93,10 +93,12 @@ fn count_tokens(text: &str) -> usize {
     // Use tiktoken_rs to count tokens accurately
     // This is a simplified implementation - in a real system, 
     // we'd want to choose the appropriate encoding based on the model
-    match tiktoken_rs::num_tokens_from_messages("gpt-3.5-turbo", &[(
-        "user".to_string(),
-        text.to_string(),
-    )]) {
+    match num_tokens_from_messages("gpt-3.5-turbo", &[ChatCompletionRequestMessage {
+        role: "user".to_string(),
+        content: Some(text.to_string()),
+        name: None,
+        function_call: None,
+    }]) {
         Ok(count) => count,
         Err(_) => {
             // Fallback to a rough character-based estimate if token counting fails
