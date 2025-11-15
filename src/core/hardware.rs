@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sysinfo::{System, SystemExt};
+use sysinfo::{CpuExt, System, SystemExt};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

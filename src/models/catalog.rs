@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ModelSpec {
     pub name: &'static str,
     pub huggingface_repo: &'static str,
@@ -15,7 +15,35 @@ pub struct ModelSpec {
     pub context_sizes: &'static [usize],
 }
 
-#[derive(Debug)]
+// Serializable/Deserializable version for configuration (without static references)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SerializableModelSpec {
+    pub name: String,
+    pub size_gb: f64,
+    pub ram_required_gb: u64,
+    pub gpu_vram_min: Option<u64>,
+    pub speed_rating: Speed,
+    pub quality_rating: Quality,
+    pub description: String,
+    pub context_sizes: Vec<usize>,  // Use owned Vec for serialization
+}
+
+impl From<&ModelSpec> for SerializableModelSpec {
+    fn from(spec: &ModelSpec) -> Self {
+        SerializableModelSpec {
+            name: spec.name.to_string(),
+            size_gb: spec.size_gb,
+            ram_required_gb: spec.ram_required_gb,
+            gpu_vram_min: spec.gpu_vram_min,
+            speed_rating: spec.speed_rating.clone(),
+            quality_rating: spec.quality_rating.clone(),
+            description: spec.description.to_string(),
+            context_sizes: spec.context_sizes.to_vec(),  // Convert slice to vector
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Speed {
     UltraFast(usize), // tokens per second
     VeryFast(usize),
@@ -24,7 +52,7 @@ pub enum Speed {
     Slow(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Quality {
     Basic,
     Good,

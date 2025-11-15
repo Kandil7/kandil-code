@@ -7,7 +7,9 @@ use crate::utils::templates::TemplateEngine;
 use crate::utils::test_generation::TestGenerator;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use futures_util::stream::StreamExt;
 use std::sync::Arc;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Parser)]
 #[command(name = "kandil")]
@@ -765,8 +767,7 @@ async fn chat(message: String) -> Result<()> {
     let config = Config::load()?;
     let factory = AIProviderFactory::new(config.clone());
     let ai = Arc::new(factory.create_ai(&config.ai_provider, &config.ai_model)?);
-    let tracked_ai =
-        crate::core::adapters::TrackedAI::new(ai.clone(), factory.get_cost_tracker());
+    let tracked_ai = crate::core::adapters::TrackedAI::new(ai.clone(), factory.get_cost_tracker());
 
     let response = tracked_ai.chat(&message).await?;
     println!("{}", response);
@@ -1632,7 +1633,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
             let catalog = &crate::models::catalog::MODEL_CATALOG;
 
             println!("Available Models:");
-            for model in catalog {
+            for model in catalog.iter() {
                 // Check compatibility if requested
                 if compatible && model.ram_required_gb > hardware.total_ram_gb {
                     continue;
@@ -1641,15 +1642,17 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
                 println!("  {}", model.name);
                 println!(
                     "    Size: {}GB, RAM: {}GB, GPU: {:?}GB",
-                    model.size_gb,
-                    model.ram_required_gb,
-                    model.gpu_vram_min
+                    model.size_gb, model.ram_required_gb, model.gpu_vram_min
                 );
 
                 // Show speed in a user-friendly way
                 let speed_str = match &model.speed_rating {
-                    crate::models::catalog::Speed::UltraFast(tps) => format!("Ultra Fast ({} t/s)", tps),
-                    crate::models::catalog::Speed::VeryFast(tps) => format!("Very Fast ({} t/s)", tps),
+                    crate::models::catalog::Speed::UltraFast(tps) => {
+                        format!("Ultra Fast ({} t/s)", tps)
+                    }
+                    crate::models::catalog::Speed::VeryFast(tps) => {
+                        format!("Very Fast ({} t/s)", tps)
+                    }
                     crate::models::catalog::Speed::Fast(tps) => format!("Fast ({} t/s)", tps),
                     crate::models::catalog::Speed::Medium(tps) => format!("Medium ({} t/s)", tps),
                     crate::models::catalog::Speed::Slow(tps) => format!("Slow ({} t/s)", tps),
@@ -1660,7 +1663,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
                 println!("    {}", model.description);
                 println!("    Context sizes: {:?}", model.context_sizes);
             }
-        },
+        }
         LocalModelSub::Install { model, force } => {
             let model_spec = crate::models::catalog::MODEL_CATALOG
                 .iter()
@@ -1691,7 +1694,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
             // Note: Verification would require SHA256 which isn't in the model spec
 
             println!("✅ Model {} installed successfully", model);
-        },
+        }
         LocalModelSub::Remove { model } => {
             let model_spec = crate::models::catalog::MODEL_CATALOG
                 .iter()
@@ -1705,7 +1708,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
             } else {
                 println!("Model {} not found at {:?}", model, path);
             }
-        },
+        }
         LocalModelSub::Verify { model } => {
             let model_spec = crate::models::catalog::MODEL_CATALOG
                 .iter()
@@ -1718,7 +1721,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
             } else {
                 println!("❌ Model {} not found at {:?}", model, path);
             }
-        },
+        }
         LocalModelSub::Benchmark { model, format } => {
             let model_name = model.unwrap_or_else(|| {
                 let config = crate::config::layered::Config::load().unwrap_or_default();
@@ -1726,7 +1729,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
             });
 
             benchmark_model(&model_name, &format).await?;
-        },
+        }
         LocalModelSub::Use { model } => {
             // This would update the user's config file to set this as default
             println!("Setting {} as the default model", model);
@@ -1734,26 +1737,38 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
             // In a real implementation, this would update the config file
             // For now, just print a message
             println!("Note: This would normally update the default model in your config file.");
-        },
+        }
         LocalModelSub::Status => {
             // Implement status check based on hardware detection and installed models
             let hardware = crate::core::hardware::detect_hardware();
             let catalog = &crate::models::catalog::MODEL_CATALOG;
 
             println!("Hardware Profile:");
-            println!("  RAM: {}GB total, {}GB available", hardware.total_ram_gb, hardware.available_ram_gb);
-            println!("  CPU: {} physical cores, {} logical cores", hardware.cpu_physical_cores, hardware.cpu_logical_cores);
+            println!(
+                "  RAM: {}GB total, {}GB available",
+                hardware.total_ram_gb, hardware.available_ram_gb
+            );
+            println!(
+                "  CPU: {} physical cores, {} logical cores",
+                hardware.cpu_physical_cores, hardware.cpu_logical_cores
+            );
             if let Some(gpu) = &hardware.gpu {
-                println!("  GPU: {} {} with {}GB memory", gpu.brand, gpu.model, gpu.memory_gb);
+                println!(
+                    "  GPU: {} {} with {}GB memory",
+                    gpu.brand, gpu.model, gpu.memory_gb
+                );
             } else {
                 println!("  GPU: None detected");
             }
 
             // Count installed models
-            let installed_count = catalog.iter()
+            let installed_count = catalog
+                .iter()
                 .filter(|m| {
                     // Check if model file exists
-                    if let Ok(path) = tokio::runtime::Handle::current().block_on(get_model_path(&m.filename)) {
+                    if let Ok(path) =
+                        tokio::runtime::Handle::current().block_on(get_model_path(&m.filename))
+                    {
                         path.exists()
                     } else {
                         false
@@ -1762,7 +1777,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
                 .count();
 
             println!("Installed models: {}", installed_count);
-        },
+        }
     }
     Ok(())
 }
@@ -1777,7 +1792,10 @@ async fn get_model_path(filename: &str) -> Result<std::path::PathBuf> {
     Ok(path.join(filename))
 }
 
-async fn download_model(model: &crate::models::catalog::ModelSpec, path: &std::path::PathBuf) -> Result<()> {
+async fn download_model(
+    model: &crate::models::catalog::ModelSpec,
+    path: &std::path::PathBuf,
+) -> Result<()> {
     // Construct the Hugging Face download URL
     let url = format!(
         "https://huggingface.co/{}/resolve/main/{}",
