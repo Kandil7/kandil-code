@@ -2,11 +2,11 @@
 //!
 //! Implements intelligent prefetching of likely-follow-up queries to improve response times.
 
+use crate::common::traits::AIProvider;
+use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use dashmap::DashMap;
-use crate::adapters::ai::local_llm::{AIProvider, LocalLLMAdapter};
 
 pub struct Prefetcher {
     model: Arc<dyn AIProvider>,
@@ -34,12 +34,12 @@ impl Prefetcher {
                 // Spawn a prefetch task
                 let model_clone = Arc::clone(&self.model);
                 let pattern_clone = pattern.clone();
-                
+
                 let (tx, rx) = tokio::sync::oneshot::channel();
-                
+
                 // Store the receiver so we can check on pending prefetches
                 self.pending_prefetches.insert(pattern.clone(), rx);
-                
+
                 // Spawn the prefetch task
                 tokio::spawn(async move {
                     let result = model_clone.complete(&pattern_clone).await;
@@ -72,7 +72,8 @@ impl Prefetcher {
             patterns.push(format!("Add tests for: {}", task));
         }
 
-        if task_lower.contains("bug") || task_lower.contains("error") || task_lower.contains("fix") {
+        if task_lower.contains("bug") || task_lower.contains("error") || task_lower.contains("fix")
+        {
             // Likely follow-ups for debugging tasks
             patterns.push(format!("Debug this further: {}", task));
             patterns.push("Provide alternative solutions".to_string());
@@ -116,29 +117,32 @@ impl Prefetcher {
     }
 
     /// Prefetch based on code patterns in the context
-    pub async fn prefetch_from_code_context(&self, code: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn prefetch_from_code_context(
+        &self,
+        code: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut patterns = Vec::new();
-        
+
         // Look for function definitions and suggest completions/refactorings
         if code.contains("fn ") {
             patterns.push("Suggest improvements to these functions".to_string());
         }
-        
+
         // Look for TODO comments
         if code.contains("TODO") || code.contains("FIXME") || code.contains("FIXME") {
             patterns.push("Address these TODO items".to_string());
         }
-        
+
         // Look for error handling
         if code.contains("unwrap()") || code.contains("expect(") {
             patterns.push("Improve error handling in this code".to_string());
         }
-        
+
         for pattern in patterns {
             // Add to prefetch queue
             let model_clone = Arc::clone(&self.model);
             let pattern_clone = pattern.clone();
-            
+
             tokio::spawn(async move {
                 let _ = model_clone.complete(&pattern_clone).await;
             });

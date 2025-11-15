@@ -24,6 +24,7 @@ impl AutoConfig {
             },
             performance,
             fallback,
+            strategy: crate::config::layered::StrategyConfig::default(),
         }
     }
 
