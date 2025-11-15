@@ -5,7 +5,11 @@
 
 pub mod adapters;
 pub mod agents;
+pub mod auto_config;
 pub mod context_manager;
+pub mod hardware;
+pub mod strategy;
+pub mod task_complexity;
 pub mod vision;
 pub mod tdd;
 pub mod doc_sync;
