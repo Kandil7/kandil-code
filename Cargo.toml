@@ -53,11 +53,11 @@ notify = "6.0"
 sysinfo = "0.29"
 nvml-wrapper = { version = "0.4", optional = true }
 lazy_static = "1.4"
-llm = { version = "0.4", features = ["ggml", "llama"] }
 indicatif = "0.17"
 tiktoken-rs = "0.5"
-hnsw-rs = "0.7"
+hnsw_rs = "0.3.2"
 blake3 = "1.5"
+tracing = "0.1"
 
 [dev-dependencies]
 tokio-test = "0.4"
