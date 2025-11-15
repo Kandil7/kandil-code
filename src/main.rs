@@ -1,5 +1,5 @@
 //! Kandil Code - Intelligent Development Platform
-//! 
+//!
 //! The main entrypoint for the Kandil Code CLI application.
 
 use anyhow::Result;
@@ -7,7 +7,13 @@ use clap::Parser;
 use env_logger::Env;
 
 mod cli;
+mod config;
 mod core;
+mod errors;
+mod models;
+mod monitoring;
+mod cache;
+mod shutdown;
 mod utils;
 #[cfg(feature = "tui")]
 mod tui;
