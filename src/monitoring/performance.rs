@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use sysinfo::{CpuExt, SystemExt};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
@@ -155,7 +156,7 @@ impl PerformanceMonitor {
         self.metrics.read().await.clone()
     }
 
-    pub async fn reset_metrics(&self) {
+    pub async fn reset_metrics(&mut self) {
         let mut metrics = self.metrics.write().await;
         *metrics = PerformanceMetrics::default();
         self.start_time = Instant::now();
@@ -232,7 +233,7 @@ mod tests {
         // Simulate a small delay
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         
-        monitor.record_response(request_id, 100, false).await.unwrap();
+        monitor.record_response(request_id, 100, false, None).await.unwrap();
         monitor.record_cache_hit().await;
         
         let metrics = monitor.get_metrics().await;

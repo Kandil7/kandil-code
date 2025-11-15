@@ -6,9 +6,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::time::Instant;
+use sysinfo::SystemExt;
 
-use crate::adapters::ai::local_llm::LocalLLMAdapter;
-use crate::adapters::ai::local_llm::AIProvider;
+use crate::common::traits::AIProvider;
 use crate::core::hardware::HardwareProfile;
 
 #[derive(Debug, Serialize)]
@@ -21,7 +21,7 @@ pub struct HealthReport {
     pub overall_status: HealthStatus,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct TestResult {
     pub name: String,
     pub success: bool,
@@ -98,7 +98,7 @@ impl HealthChecker {
         HealthReport {
             timestamp: Utc::now(),
             model_name: self.model.name().await,
-            results,
+            results: results.clone(),
             memory_usage,
             gpu_info,
             overall_status: Self::calculate_status(&results),
