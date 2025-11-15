@@ -2,10 +2,8 @@
 //!
 //! Implements a simple in-memory cache with time-to-live for AI responses.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, Duration, UNIX_EPOCH};
-use tokio::sync::RwLock;
 use dashmap::DashMap;
 
 pub struct ResponseCache {

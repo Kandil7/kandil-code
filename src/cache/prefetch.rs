@@ -4,9 +4,7 @@
 
 use crate::common::traits::AIProvider;
 use dashmap::DashMap;
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub struct Prefetcher {
     model: Arc<dyn AIProvider>,
