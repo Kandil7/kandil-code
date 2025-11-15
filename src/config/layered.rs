@@ -7,7 +7,7 @@ use crate::core::auto_config::AutoConfig;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StrategyConfig {
-    pub mode: crate::core::strategy::ExecutionStrategyType,
+    pub mode: crate::core::strategy::ExecutionMode,
     pub timeout_ms: u64,
     pub fast_model: Option<String>,
     pub quality_model: Option<String>,
@@ -16,7 +16,7 @@ pub struct StrategyConfig {
 impl Default for StrategyConfig {
     fn default() -> Self {
         Self {
-            mode: crate::core::strategy::ExecutionStrategyType::Local,
+            mode: crate::core::strategy::ExecutionMode::Local,
             timeout_ms: 30000, // 30 seconds default
             fast_model: None,
             quality_model: None,
