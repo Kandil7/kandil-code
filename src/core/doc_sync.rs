@@ -8,7 +8,6 @@ use notify::{recommended_watcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::mpsc::channel;
-use std::time::Duration;
 use tokio::fs;
 
 #[derive(Debug)]

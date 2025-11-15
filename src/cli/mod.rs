@@ -1783,7 +1783,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
 }
 
 async fn get_model_path(filename: &str) -> Result<std::path::PathBuf> {
-    let mut path = dirs::data_dir()
+    let path = dirs::data_dir()
         .unwrap_or_else(|| std::env::current_dir().unwrap())
         .join("kandil")
         .join("models");
@@ -1826,7 +1826,7 @@ async fn download_model(
 }
 
 async fn benchmark_model(name: &str, _format: &str) -> Result<()> {
-    use std::time::Instant;
+    
 
     println!("🔍 Benchmarking model: {}", name);
 
