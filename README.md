@@ -32,9 +32,18 @@ This platform combines the efficiency of command-line interfaces with the intera
 - **Multi-Language Project Generation**: Support for Flutter, Python, JavaScript, Rust, and more
 - **Intelligent CLI**: Context-aware command line interface with AI assistance
 - **Interactive TUI Studio**: Terminal-based IDE with file navigation, code preview, and AI chat
-- **Unified AI Interface**: Support for local (Ollama) and cloud models (Claude, Qwen, OpenAI)
+- **Unified AI Interface**: Support for local models and cloud models (Claude, Qwen, OpenAI)
 - **Multi-Agent System**: Specialized agents for different development tasks
 - **Project Management**: Secure local storage with cloud synchronization (Supabase)
+
+### Local Model Integration
+- **Hardware-Aware Auto-Detection**: Automatically detects your hardware specs (RAM, CPU, GPU) and selects optimal models
+- **Zero-Configuration Default**: Works out-of-the-box with automatic model selection based on available resources
+- **Model Catalog**: Built-in catalog with models from 1.5B to 70B parameters optimized for different hardware tiers
+- **Model Management CLI**: Install, list, remove, verify, benchmark, and switch models with simple commands
+- **Quantization Support**: Automatic quantization selection (Q4, Q5, Q6) for optimal performance
+- **Execution Strategies**: LocalOnly, Hybrid (with cloud fallback), and Dynamic (model selection based on task complexity)
+- **Performance Optimization**: Advanced caching (semantic, TTL), prefetching, and performance monitoring
 
 ### AI-Powered Development
 - **Requirements Elicitation**: AI-assisted gathering and documentation of software requirements
@@ -90,8 +99,30 @@ cargo build --release
 After installation, initialize your configuration:
 ```bash
 kandil init
-kandil config set-key <provider> <api-key>  # e.g., claude, openai, qwen
+kandil config set-key <provider> <api-key>  # e.g., claude, openai, qwen (for cloud providers)
 ```
+
+### Local Model Setup (Optional)
+Kandil Code comes with built-in support for local models that work automatically:
+
+1. **Automatic Model Selection**: On first run, Kandil Code will detect your hardware and automatically select an appropriate model based on available RAM:
+   - 4-8GB RAM: Lightweight models (1.5B-3B parameters)
+   - 8-16GB RAM: Standard models (7B parameters)
+   - 16-32GB RAM: Professional models (14B parameters)
+   - 32GB+ RAM: Premium models (70B parameters)
+
+2. **Manual Model Management**: You can manually install and manage local models:
+   ```bash
+   kandil model list                    # List all available models
+   kandil model list --compatible      # List models compatible with your hardware
+   kandil model install qwen2.5-coder-7b-q4  # Install a specific model
+   kandil model use qwen2.5-coder-7b-q4     # Set as default model
+   kandil model benchmark                # Benchmark your current model
+   kandil model verify qwen2.5-coder-7b-q4  # Verify model integrity
+   kandil model remove qwen2.5-coder-7b-q4  # Uninstall model
+   ```
+
+The local models are stored in your user data directory and are automatically managed by Kandil Code.
 
 ## Quick Start
 
