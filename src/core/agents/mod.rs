@@ -51,4 +51,3 @@ pub use i18n::I18nAssistant;
 pub use a11y::A11yAssistant;
 pub use collaboration_realtime::RealTimeCollaboration;
 pub use ide_extension::IdeExtension;
-pub use consensus::{ConsensusOrchestrator, SpecializedAgent, Solution, CodeAgent as ConsensusCodeAgent, DesignAgent as ConsensusDesignAgent, SecurityAgent as ConsensusSecurityAgent};

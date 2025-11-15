@@ -6,7 +6,7 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
-use tree_sitter::{Parser, Language, Query, QueryCursor};
+use tree_sitter::{Parser, Query};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
