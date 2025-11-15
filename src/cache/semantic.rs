@@ -2,7 +2,6 @@
 //!
 //! Implements semantic similarity-based caching for AI responses.
 
-use hnsw_rs::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -10,14 +9,12 @@ use tokio::sync::RwLock;
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-// We'll use a simple embedding approach for now - in production, 
+// We'll use a simple embedding approach for now - in production,
 // we'd want to use a proper embedding model
 use tiktoken_rs::num_tokens_from_messages;
 
 pub struct SemanticCache {
-    // HNSW index for semantic similarity search
-    index: Arc<RwLock<Hnsw<u32, usize>>>,
-    // Storage for cache entries
+    // Storage for cache entries - using a simpler approach without HNSW
     store: Arc<DashMap<usize, CacheEntry>>,
     // Configuration for the cache
     config: CacheConfig,
@@ -53,16 +50,7 @@ impl Default for CacheConfig {
 
 impl SemanticCache {
     pub fn new(config: CacheConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let index = Hnsw::<u32, usize>::new(
-            384, // Dimension of our embedding space (simplified)
-            100, // Max connections
-            16,  // M (for HNSW)
-            200, // EF construction
-            hnsw_rs::prelude::DistCOSINE, // Cosine distance for similarity
-        );
-
         Ok(Self {
-            index: Arc::new(RwLock::new(index)),
             store: Arc::new(DashMap::new()),
             exact_store: Arc::new(DashMap::new()),
             config,
@@ -163,10 +151,10 @@ impl SemanticCache {
 
         let tokens = self.count_tokens(&response);
         let created_at = std::time::SystemTime::now();
-        
+
         // Calculate prompt hash for exact match lookup
         let prompt_hash = self.calculate_hash(&prompt);
-        
+
         // Add to exact match store
         let entry = CacheEntry {
             response: response.clone(),
@@ -180,12 +168,10 @@ impl SemanticCache {
             ),
             created_at,
         };
-        
+
         self.exact_store.insert(prompt_hash, entry.clone());
-        
-        // Also add to semantic store
-        // In a real implementation, we would add the embedding to the HNSW index here
-        // For now, we'll just add to the store with a simple numeric index
+
+        // Add to semantic store with a simple numeric index
         let idx = self.store.len();
         self.store.insert(idx, entry);
     }
@@ -199,7 +185,6 @@ impl SemanticCache {
 
         if let Some(entry) = lru_entry {
             self.store.remove(&entry.key());
-            // Note: HNSW doesn't support deletion, we'd rebuild periodically in a real implementation
         }
     }
 
