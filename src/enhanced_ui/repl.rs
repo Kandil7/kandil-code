@@ -1,14 +1,14 @@
 use crate::{
     enhanced_ui::{
-        adaptive::AdaptiveUI,
+        adaptive::{AdaptiveUI, AccessibilityMode},
         ide_sync::IdeSyncBridge,
         input::{InputMethod, UniversalInput},
         persona::PersonaProfile,
-        predictive::PredictiveExecutor,
+        predictive::{PredictiveExecutor, GhostText},
         smart_prompt::{SmartPrompt, PipelineStage},
         splash::{self, CommandContext, SplashResult},
         terminal::KandilTerminal,
-        thought::{ThoughtFragment, ThoughtStreamer},
+        thought::{ThoughtFragment, ThoughtStreamer, OutputMode},
     },
     mobile::MobileBridge,
 };
@@ -46,15 +46,22 @@ pub async fn run_repl() -> Result<()> {
     let mut context = CommandContext::new(terminal.clone());
     let mut prompt = KandilPrompt::default();
     let mut universal_input = UniversalInput::new()?;
-    let adaptive_ui = AdaptiveUI::from_system();
+    let adaptive_ui = AdaptiveUI::from_system()
+        .with_accessibility_mode(AdaptiveUI::detect_accessibility_mode());
     let ide_sync = IdeSyncBridge::new(env::current_dir()?);
     ide_sync.launch(adaptive_ui.clone())?;
     let mobile_bridge = MobileBridge::new()?;
     let mut predictive_executor = PredictiveExecutor::new();
-    let thought_streamer = ThoughtStreamer::new();
+    let thought_streamer = ThoughtStreamer::with_output_mode(OutputMode::Streaming);
     let mut persona_profile = PersonaProfile::from_history(&context.recent_commands);
 
     println!("Kandil Shell initialized. Type /help for splash commands.");
+
+    // Display UI capabilities based on hardware and accessibility settings
+    println!("UI Capabilities: {}", adaptive_ui.capabilities_description());
+    if adaptive_ui.should_enhance_accessibility() {
+        println!("Accessibility features enabled: {:?}", adaptive_ui.accessibility_mode());
+    }
 
     loop {
         // Enhance context detection before input processing
@@ -90,12 +97,22 @@ pub async fn run_repl() -> Result<()> {
 
         universal_input.add_history(trimmed)?;
 
-        if handle_special_input(trimmed, &terminal, &mut context).await? {
+        if handle_special_input(trimmed, &terminal, &mut context, Some(&thought_streamer)).await? {
             continue;
         }
 
         thought_streamer.emit(ThoughtFragment::Context(format!("Input `{}`", trimmed)));
-        predictive_executor.prefetch(trimmed);
+
+        // Use enhanced prefetching with async capabilities
+        if predictive_executor.should_prefetch() {
+            predictive_executor.prefetch(trimmed);
+            predictive_executor.mark_prefetch_time();
+
+            // In a real implementation, we might also call prefetch_async here
+            // tokio::spawn(async move {
+            //     let _ = predictive_executor.prefetch_async(trimmed).await;
+            // });
+        }
 
         // Enhanced context-aware command parsing
         let parsed = parse_command_enhanced(trimmed, &context).await;
@@ -124,6 +141,13 @@ pub async fn run_repl() -> Result<()> {
         if let Some(hint) = predictive_executor.predict_hint() {
             println!("🔮 Prediction: {}", hint);
         }
+
+        // Display ghost text information if available
+        if let Some(ghost) = predictive_executor.get_ghost_text() {
+            if ghost.confidence > 0.5 {
+                println!("👻 Ghost text suggestion: {} (confidence: {:.1})", ghost.text, ghost.confidence);
+            }
+        }
         mobile_bridge.sync_jobs(&job_snapshot);
         let updated_profile = PersonaProfile::from_history(&context.recent_commands);
         if updated_profile.persona != persona_profile.persona {
@@ -140,6 +164,7 @@ async fn handle_special_input(
     input: &str,
     terminal: &Arc<KandilTerminal>,
     context: &mut CommandContext,
+    thought_streamer: Option<&ThoughtStreamer>,
 ) -> Result<bool> {
     match input {
         "/help" => {
@@ -154,6 +179,30 @@ async fn handle_special_input(
             terminal.reset_context().await?;
             context.job_tracker.complete_all();
             println!("🔄 Context reset");
+            Ok(true)
+        }
+        "/thoughts" => {
+            if let Some(thinker) = thought_streamer {
+                println!("💡 Recent thoughts:");
+                let recent = thinker.get_recent_thoughts(5);
+                for thought in recent {
+                    match thought.fragment {
+                        ThoughtFragment::Action(msg) => println!("  ⚙️  Action: {}", msg),
+                        ThoughtFragment::Result(msg) => println!("  ✅ Result: {}", msg),
+                        ThoughtFragment::Insight(msg) => println!("  💡 Insight: {}", msg),
+                        ThoughtFragment::Hypothesis(msg) => println!("  🧠 Hypothesis: {}", msg),
+                        ThoughtFragment::Context(msg) => println!("  📚 Context: {}", msg),
+                        ThoughtFragment::Process(msg) => println!("  🔄 Process: {}", msg),
+                        ThoughtFragment::Question(msg) => println!("  ❓ Question: {}", msg),
+                    }
+                }
+
+                if recent.is_empty() {
+                    println!("  No recent thoughts to display");
+                }
+            } else {
+                println!("  No thought streamer available");
+            }
             Ok(true)
         }
         "exit" | "quit" => Ok(false),
@@ -448,6 +497,11 @@ fn print_help() {
     for cmd in splash::SPLASH_COMMANDS.iter() {
         println!("  {:<10} {}", cmd.trigger, cmd.description);
     }
+    println!("\nSpecial commands:");
+    println!("  {:<10} {}", "/help", "Show this help message");
+    println!("  {:<10} {}", "/clear", "Clear the terminal screen");
+    println!("  {:<10} {}", "/reset", "Reset the command context");
+    println!("  {:<10} {}", "/thoughts", "Display recent thoughts from AI reasoning");
     println!("Use standard shell commands without '/' prefix.");
 }
 
