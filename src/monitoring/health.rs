@@ -4,8 +4,8 @@
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use tokio::time::Instant;
 use sysinfo::SystemExt;
+use tokio::time::Instant;
 
 use crate::common::traits::AIProvider;
 use crate::core::hardware::HardwareProfile;
@@ -89,7 +89,11 @@ impl HealthChecker {
             // In a real implementation, we would measure actual GPU usage
             GpuUsage {
                 memory_used_mb: 0, // Placeholder
-                memory_total_mb: self.profile.gpu.as_ref().map_or(0, |gpu| gpu.memory_gb * 1024),
+                memory_total_mb: self
+                    .profile
+                    .gpu
+                    .as_ref()
+                    .map_or(0, |gpu| gpu.memory_gb * 1024),
                 utilization_percent: 0.0,
             }
         });

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct ModelSpec {
@@ -25,7 +25,7 @@ pub struct SerializableModelSpec {
     pub speed_rating: Speed,
     pub quality_rating: Quality,
     pub description: String,
-    pub context_sizes: Vec<usize>,  // Use owned Vec for serialization
+    pub context_sizes: Vec<usize>, // Use owned Vec for serialization
 }
 
 impl From<&ModelSpec> for SerializableModelSpec {
@@ -38,7 +38,7 @@ impl From<&ModelSpec> for SerializableModelSpec {
             speed_rating: spec.speed_rating.clone(),
             quality_rating: spec.quality_rating.clone(),
             description: spec.description.to_string(),
-            context_sizes: spec.context_sizes.to_vec(),  // Convert slice to vector
+            context_sizes: spec.context_sizes.to_vec(), // Convert slice to vector
         }
     }
 }

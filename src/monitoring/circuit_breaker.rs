@@ -111,13 +111,11 @@ impl CircuitBreaker {
 #[derive(PartialEq, Debug)]
 
 pub enum CircuitState {
+    Closed, // Normal operation
 
-    Closed,    // Normal operation
+    HalfOpen, // Testing if failure condition is resolved
 
-    HalfOpen,  // Testing if failure condition is resolved
-
-    Open,      // Failure threshold exceeded, requests blocked
-
+    Open, // Failure threshold exceeded, requests blocked
 }
 
 pub struct CircuitStats {
