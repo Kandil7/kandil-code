@@ -101,7 +101,17 @@ impl<'a> PromptRouter<'a> {
 
 fn infer_intent(message: &str) -> PromptIntent {
     let lower = message.to_lowercase();
-    if contains_any(&lower, &["refactor", "code", "function", "bugfix"]) {
+
+    // Check for specific slash commands first
+    if lower.starts_with("/ref") {
+        PromptIntent::Coding
+    } else if lower.starts_with("/test") {
+        PromptIntent::Testing
+    } else if lower.starts_with("/fix") {
+        PromptIntent::Analysis
+    } else if lower.starts_with("/review") {
+        PromptIntent::Analysis
+    } else if contains_any(&lower, &["refactor", "code", "function", "bugfix"]) {
         PromptIntent::Coding
     } else if contains_any(&lower, &["plan", "roadmap", "requirement", "story"]) {
         PromptIntent::Planning
@@ -109,7 +119,7 @@ fn infer_intent(message: &str) -> PromptIntent {
         PromptIntent::Architecture
     } else if contains_any(&lower, &["test", "qa", "edge case", "verify"]) {
         PromptIntent::Testing
-    } else if contains_any(&lower, &["analyze", "metrics", "compare", "benchmark"]) {
+    } else if contains_any(&lower, &["analyze", "metrics", "compare", "benchmark", "review", "fix"]) {
         PromptIntent::Analysis
     } else {
         PromptIntent::Conversation

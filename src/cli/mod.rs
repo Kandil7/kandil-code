@@ -93,6 +93,13 @@ pub enum Commands {
         #[command(subcommand)]
         sub: AuthSub,
     },
+    /// System diagnostics and health checks
+    Doctor {
+        #[arg(long)]
+        verbose: bool,
+        #[arg(long, default_value = "json")]
+        format: String,
+    },
     /// Windows-specific local runtime helpers
     Windows {
         #[command(subcommand)]
@@ -780,6 +787,8 @@ pub enum WindowsSub {
     Status,
     /// Run GPU passthrough diagnostics for WSL2
     CheckGpu,
+    /// Run comprehensive system diagnostics
+    Doctor,
     /// Print WSL2 + Ollama setup instructions
     SetupWsl2,
 }
@@ -788,6 +797,8 @@ pub enum WindowsSub {
 pub enum MacosSub {
     /// Display Core ML status and ANE availability
     Status,
+    /// Run comprehensive system diagnostics
+    Doctor,
     /// Show setup instructions for Core ML runtimes
     SetupCoreml,
 }
@@ -833,6 +844,7 @@ pub async fn run(cli: Cli) -> Result<()> {
         Some(Commands::Mobile { sub }) => handle_mobile(sub).await?,
         Some(Commands::Pwa { output }) => handle_pwa(output).await?,
         Some(Commands::Web { address }) => web::start(&address).await?,
+        Some(Commands::Doctor { verbose, format }) => handle_doctor(verbose, &format).await?,
         None => {
             println!("Kandil Code - Intelligent Development Platform");
             println!("Use --help for commands");
@@ -2158,6 +2170,31 @@ async fn handle_windows(sub: WindowsSub) -> Result<()> {
             let report = windows::check_wsl_gpu();
             println!("{}", report.message);
         }
+        WindowsSub::Doctor => {
+            // Run comprehensive diagnostics
+            use crate::benchmark::CrossPlatformBenchmark;
+            let benchmark = CrossPlatformBenchmark::new();
+            let report = benchmark.run_diagnostics().await;
+
+            println!("🏥 Windows System Diagnostic Report:");
+            println!("Platform: {:?}", report.hardware.platform);
+            println!("Hardware: {}GB RAM, {} CPU cores",
+                     report.hardware.total_ram_gb, report.hardware.cpu_logical_cores);
+
+            if let Some(gpu) = &report.hardware.gpu {
+                println!("GPU: {} {} with {}GB memory",
+                         gpu.brand, gpu.model, gpu.memory_gb);
+            }
+
+            let reachable_count = report.connectivity.endpoints.iter().filter(|e| e.reachable).count();
+            println!("Connectivity: {}/{} endpoints reachable",
+                     reachable_count, report.connectivity.endpoints.len());
+
+            for endpoint in &report.connectivity.endpoints {
+                let status = if endpoint.reachable { "✅" } else { "❌" };
+                println!("  {} {}: {}", status, endpoint.name, endpoint.endpoint);
+            }
+        }
         WindowsSub::SetupWsl2 => {
             println!("{}", windows::setup_wsl2_instructions());
         }
@@ -2181,6 +2218,31 @@ async fn handle_macos(sub: MacosSub) -> Result<()> {
                 println!("  - {}", note);
             }
         }
+        MacosSub::Doctor => {
+            // Run comprehensive diagnostics
+            use crate::benchmark::CrossPlatformBenchmark;
+            let benchmark = CrossPlatformBenchmark::new();
+            let report = benchmark.run_diagnostics().await;
+
+            println!("🏥 macOS System Diagnostic Report:");
+            println!("Platform: {:?}", report.hardware.platform);
+            println!("Hardware: {}GB RAM, {} CPU cores",
+                     report.hardware.total_ram_gb, report.hardware.cpu_logical_cores);
+
+            if let Some(gpu) = &report.hardware.gpu {
+                println!("GPU: {} {} with {}GB memory",
+                         gpu.brand, gpu.model, gpu.memory_gb);
+            }
+
+            let reachable_count = report.connectivity.endpoints.iter().filter(|e| e.reachable).count();
+            println!("Connectivity: {}/{} endpoints reachable",
+                     reachable_count, report.connectivity.endpoints.len());
+
+            for endpoint in &report.connectivity.endpoints {
+                let status = if endpoint.reachable { "✅" } else { "❌" };
+                println!("  {} {}: {}", status, endpoint.name, endpoint.endpoint);
+            }
+        }
         MacosSub::SetupCoreml => {
             println!("{}", macos::setup_instructions());
         }
@@ -2202,11 +2264,88 @@ async fn handle_linux(sub: LinuxSub) -> Result<()> {
             let hardware = detect_hardware();
             PlatformHardener::new(&hardware).apply()?;
             println!("Ran Linux platform hardening checks. Review warnings above, if any.");
+
+            // Also run comprehensive diagnostics
+            use crate::benchmark::CrossPlatformBenchmark;
+            let benchmark = CrossPlatformBenchmark::new();
+            let report = benchmark.run_diagnostics().await;
+
+            println!("\n🏥 Additional System Diagnostic Report:");
+            println!("Platform: {:?}", report.hardware.platform);
+            println!("Connectivity endpoints reachable: {}/{}",
+                     report.connectivity.endpoints.iter().filter(|e| e.reachable).count(),
+                     report.connectivity.endpoints.len());
+            println!("Memory usage: {}MB baseline, {}MB peak",
+                     report.performance.memory_baseline_mb,
+                     report.performance.memory_peak_mb);
         }
         LinuxSub::Setup => {
             println!("{}", linux::setup_instructions());
         }
     }
+    Ok(())
+}
+
+async fn handle_doctor(verbose: bool, format: &str) -> Result<()> {
+    use crate::benchmark::CrossPlatformBenchmark;
+
+    println!("🏥 Running system diagnostics...");
+
+    let benchmark = CrossPlatformBenchmark::new();
+    let report = benchmark.run_diagnostics().await;
+
+    match format.to_lowercase().as_str() {
+        "json" => {
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
+        "table" | "text" => {
+            println!("\n🏥 Kandil Code System Diagnostic Report");
+            println!("=====================================");
+            println!("Timestamp: {}", report.timestamp);
+
+            println!("\n🖥️  Hardware Profile:");
+            println!("  Platform: {:?}", report.hardware.platform);
+            println!("  CPU: {} physical cores, {} logical cores",
+                     report.hardware.cpu_physical_cores, report.hardware.cpu_logical_cores);
+            println!("  RAM: {}GB total, {}GB available",
+                     report.hardware.total_ram_gb, report.hardware.available_ram_gb);
+            println!("  Disk: {}GB free", report.hardware.free_disk_gb);
+
+            if let Some(gpu) = &report.hardware.gpu {
+                println!("  GPU: {} {} with {}GB memory",
+                         gpu.brand, gpu.model, gpu.memory_gb);
+            } else {
+                println!("  GPU: None detected");
+            }
+
+            println!("\n🔌 Connectivity Status:");
+            for endpoint in &report.connectivity.endpoints {
+                let status = if endpoint.reachable { "✅" } else { "❌" };
+                println!("  {} {}: {} ({})", status, endpoint.name, endpoint.endpoint, endpoint.reachable);
+            }
+
+            println!("\n⚡ Performance Metrics:");
+            println!("  CPU Test Duration: {}ms", report.performance.cpu_test_duration_ms);
+            println!("  Memory Baseline: {}MB", report.performance.memory_baseline_mb);
+            println!("  Memory Peak: {}MB", report.performance.memory_peak_mb);
+
+            println!("\n🔒 Security Status:");
+            println!("  API Keys Secure: {}", if report.security.api_key_secure { "✅" } else { "⚠️ " });
+            println!("  Network Secure: {}", if report.security.network_secure { "✅" } else { "⚠️ " });
+
+            if verbose {
+                println!("\n📋 Detailed Report:");
+                println!("  Hardware: {:?}", report.hardware);
+                println!("  Connectivity: {:?}", report.connectivity);
+                println!("  Performance: {:?}", report.performance);
+                println!("  Security: {:?}", report.security);
+            }
+        }
+        _ => {
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
+    }
+
     Ok(())
 }
 
