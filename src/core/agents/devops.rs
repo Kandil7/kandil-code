@@ -1,13 +1,13 @@
 //! DevOps simulation agent
-//! 
+//!
 //! Agent that simulates DevOps activities including IaC generation and incident response
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
-use crate::core::agents::base::{Agent, AgentState};
-use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,19 +45,22 @@ impl DevOpsSimulation {
             - Output connection strings
 
             Respond with only HCL code.
-            "#, 
+            "#,
             infra_spec
         );
 
         let tf_code = self.ai.chat(&prompt).await?;
-        
+
         // Write Terraform code to file
         let path = std::path::PathBuf::from("infra/main.tf");
         std::fs::create_dir_all("infra")?;
         std::fs::write(&path, tf_code)?;
 
         // Validate with terraform fmt (if available)
-        if let Ok(_) = Command::new("terraform").args(&["fmt", "-check", "infra"]).status() {
+        if let Ok(_) = Command::new("terraform")
+            .args(&["fmt", "-check", "infra"])
+            .status()
+        {
             // Validation successful
         } else {
             println!("Warning: Terraform not found, skipping validation");
@@ -79,7 +82,7 @@ impl DevOpsSimulation {
             
             Original code:
             {}
-            "#, 
+            "#,
             tf_code
         );
 
@@ -100,7 +103,7 @@ impl DevOpsSimulation {
         );
 
         let response = self.ai.chat(&prompt).await?;
-        
+
         Ok(DrillReport {
             scenario: scenario.to_string(),
             duration_seconds: 1800, // 30 minutes
@@ -168,7 +171,7 @@ impl Agent for DevOpsSimulation {
             "As a DevOps Engineer, given this infrastructure task: {}\n\nPlan the next DevOps activity. Consider automation, security, scalability, and reliability.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -178,7 +181,7 @@ impl Agent for DevOpsSimulation {
             "Execute this DevOps plan: {}\n\nImplement infrastructure as code, configure CI/CD, or set up monitoring.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -188,7 +191,7 @@ impl Agent for DevOpsSimulation {
             "Analyze these DevOps results: {}\n\nHow does this infrastructure setup impact deployment, monitoring, and reliability?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

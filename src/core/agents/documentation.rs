@@ -1,12 +1,12 @@
 //! Comprehensive Documentation Generator
-//! 
+//!
 //! Module for generating comprehensive project documentation
 
+use crate::core::adapters::ai::KandilAI;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,8 +115,11 @@ impl DocumentationGenerator {
         // 1. Read project metadata (Cargo.toml, package.json, etc.) to populate ProjectInfo
         // 2. Use AI to generate content sections based on code analysis
         // 3. Call self.generate_documentation with a suitable DocConfig
-        
-        Ok(format!("Documentation generation initiated for project at: {}", project_path))
+
+        Ok(format!(
+            "Documentation generation initiated for project at: {}",
+            project_path
+        ))
     }
 
     pub fn add_section(&mut self, section: DocumentationSection) {
@@ -130,7 +133,7 @@ impl DocumentationGenerator {
     pub fn generate_documentation(&self, config: &DocConfig) -> Result<()> {
         // Create output directory
         fs::create_dir_all(&config.output_dir)?;
-        
+
         // Generate different formats based on config
         for format in &self.formats {
             match format {
@@ -142,50 +145,50 @@ impl DocumentationGenerator {
                 OutputFormat::Docusaurus => self.generate_docusaurus(config)?,
             }
         }
-        
+
         Ok(())
     }
 
     fn generate_markdown(&self, config: &DocConfig) -> Result<()> {
         let output_dir = Path::new(&config.output_dir).join("markdown");
         fs::create_dir_all(&output_dir)?;
-        
+
         // Generate README
         let readme_content = self.create_readme();
         fs::write(output_dir.join("README.md"), readme_content)?;
-        
+
         // Generate detailed documentation
         for section in &self.content_sections {
             let file_name = format!("{}.md", section.id);
             fs::write(output_dir.join(file_name), &section.content)?;
         }
-        
+
         // Generate SUMMARY/TOC
         let toc_content = self.create_table_of_contents();
         fs::write(output_dir.join("SUMMARY.md"), toc_content)?;
-        
+
         Ok(())
     }
 
     fn generate_html(&self, config: &DocConfig) -> Result<()> {
         let output_dir = Path::new(&config.output_dir).join("html");
         fs::create_dir_all(&output_dir)?;
-        
+
         // Generate main index.html
         let html_content = self.create_html_document(config);
         fs::write(output_dir.join("index.html"), html_content)?;
-        
+
         // Generate individual pages for sections
         for section in &self.content_sections {
             let file_name = format!("{}.html", section.id);
             let page_content = self.create_html_page(section, config);
             fs::write(output_dir.join(file_name), page_content)?;
         }
-        
+
         // Generate assets
         let assets_dir = output_dir.join("assets");
         fs::create_dir_all(&assets_dir)?;
-        
+
         // Copy assets
         for asset in &self.assets {
             // In a real implementation, this would copy the actual asset files
@@ -193,7 +196,7 @@ impl DocumentationGenerator {
             let asset_path = assets_dir.join(&asset.name);
             fs::write(asset_path, format!("Placeholder for asset: {}", asset.name))?;
         }
-        
+
         Ok(())
     }
 
@@ -201,8 +204,11 @@ impl DocumentationGenerator {
         // In a real implementation, this would use a PDF generation library
         // For now, we'll just indicate that PDF generation is possible
         let output_dir = Path::new(&config.output_dir);
-        fs::write(output_dir.join("documentation.pdf"), "PDF documentation would be generated here")?;
-        
+        fs::write(
+            output_dir.join("documentation.pdf"),
+            "PDF documentation would be generated here",
+        )?;
+
         Ok(())
     }
 
@@ -210,33 +216,36 @@ impl DocumentationGenerator {
         // Generate Confluence-compatible markup
         let output_dir = Path::new(&config.output_dir).join("confluence");
         fs::create_dir_all(&output_dir)?;
-        
+
         for section in &self.content_sections {
             let file_name = format!("{}.confluence", section.id);
             let confluence_content = self.create_confluence_markup(section);
             fs::write(output_dir.join(file_name), confluence_content)?;
         }
-        
+
         Ok(())
     }
 
     fn generate_gitbook(&self, config: &DocConfig) -> Result<()> {
         let output_dir = Path::new(&config.output_dir).join("gitbook");
         fs::create_dir_all(&output_dir)?;
-        
+
         // Create GitBook-specific files
-        let book_json = format!(r#"{{
+        let book_json = format!(
+            r#"{{
   "title": "{}",
   "description": "{}",
   "author": "{}"
-}}"#, config.title, self.project_info.description, config.author);
-        
+}}"#,
+            config.title, self.project_info.description, config.author
+        );
+
         fs::write(output_dir.join("book.json"), book_json)?;
-        
+
         // Generate SUMMARY.md for GitBook
         let summary = self.create_gitbook_summary();
         fs::write(output_dir.join("SUMMARY.md"), summary)?;
-        
+
         // Generate chapters
         for section in &self.content_sections {
             let file_name = format!("{}/{}.md", "docs", section.id);
@@ -244,18 +253,18 @@ impl DocumentationGenerator {
             fs::create_dir_all(&chapter_dir)?;
             fs::write(output_dir.join(file_name), &section.content)?;
         }
-        
+
         Ok(())
     }
 
     fn generate_docusaurus(&self, config: &DocConfig) -> Result<()> {
         let output_dir = Path::new(&config.output_dir).join("docusaurus");
         fs::create_dir_all(&output_dir)?;
-        
+
         // Create Docusaurus-specific directory structure
         let docs_dir = output_dir.join("docs");
         fs::create_dir_all(&docs_dir)?;
-        
+
         // Create docusaurus config
         let docusaurus_config = r#"module.exports = {
   title: 'Documentation',
@@ -265,15 +274,15 @@ impl DocumentationGenerator {
   organizationName: 'kandil',
   projectName: 'kandil-code',
 };"#;
-        
+
         fs::write(output_dir.join("docusaurus.config.js"), docusaurus_config)?;
-        
+
         // Generate docs
         for section in &self.content_sections {
             let file_name = format!("{}.mdx", section.id);
             fs::write(docs_dir.join(file_name), &section.content)?;
         }
-        
+
         Ok(())
     }
 
@@ -316,7 +325,8 @@ Licensed under the {} License.
     }
 
     fn create_simple_toc(&self) -> String {
-        self.content_sections.iter()
+        self.content_sections
+            .iter()
             .map(|section| format!("- [{}](#{})", section.title, section.id))
             .collect::<Vec<_>>()
             .join("\n")
@@ -324,12 +334,15 @@ Licensed under the {} License.
 
     fn create_table_of_contents(&self) -> String {
         let mut toc = String::from("# Table of Contents\n\n");
-        
+
         for section in &self.content_sections {
             let indent = "  ".repeat((section.level - 1) as usize);
-            toc.push_str(&format!("{}- [{}](#{})\n", indent, section.title, section.id));
+            toc.push_str(&format!(
+                "{}- [{}](#{})\n",
+                indent, section.title, section.id
+            ));
         }
-        
+
         toc
     }
 
@@ -418,20 +431,22 @@ Licensed under the {} License.
     }
 
     fn create_nav_links(&self) -> String {
-        self.content_sections.iter()
+        self.content_sections
+            .iter()
             .map(|section| format!("<li><a href=\"#{}\">{}</a></li>", section.id, section.title))
             .collect::<Vec<_>>()
             .join("\n")
     }
 
     fn create_main_content(&self) -> String {
-        self.content_sections.iter()
-            .map(|section| format!("<section id=\"{}\"><h{}>{}</h{}><p>{}</p></section>", 
-                section.id, 
-                section.level, 
-                section.title, 
-                section.level, 
-                section.content))
+        self.content_sections
+            .iter()
+            .map(|section| {
+                format!(
+                    "<section id=\"{}\"><h{}>{}</h{}><p>{}</p></section>",
+                    section.id, section.level, section.title, section.level, section.content
+                )
+            })
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -467,11 +482,11 @@ Licensed under the {} License.
 
     fn create_gitbook_summary(&self) -> String {
         let mut summary = String::from("# Summary\n\n");
-        
+
         for section in &self.content_sections {
             summary.push_str(&format!("- [{}]({}.md)\n", section.title, section.id));
         }
-        
+
         summary
     }
 }

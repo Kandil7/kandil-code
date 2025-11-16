@@ -1,14 +1,14 @@
 //! Code generation agent
-//! 
+//!
 //! Specialized agent for generating production-ready code from design documents
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState, ReActLoop};
+use crate::utils::templates::TemplateEngine;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use crate::core::agents::base::{Agent, AgentState, ReActLoop};
-use crate::core::adapters::ai::KandilAI;
-use crate::utils::templates::TemplateEngine;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,7 +48,8 @@ impl CodeAgent {
         let loop_engine = ReActLoop::new(5);
         let result = loop_engine.run(self, &task).await?;
 
-        self.parse_and_write_code(&result.final_answer, language).await
+        self.parse_and_write_code(&result.final_answer, language)
+            .await
     }
 
     async fn parse_and_write_code(&self, response: &str, language: &str) -> Result<CodeOutput> {
@@ -73,20 +74,25 @@ impl CodeAgent {
         })
     }
 
-    pub async fn generate_for_project(&self, project_path: &str, design_doc: &str, language: &str) -> Result<()> {
+    pub async fn generate_for_project(
+        &self,
+        project_path: &str,
+        design_doc: &str,
+        language: &str,
+    ) -> Result<()> {
         let output = self.generate_code(design_doc, language).await?;
-        
+
         // Write files to project
         for file in output.files {
             let file_path = Path::new(project_path).join(&file.path);
-            
+
             if let Some(parent) = file_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            
+
             std::fs::write(&file_path, &file.content)?;
         }
-        
+
         Ok(())
     }
 }
@@ -98,7 +104,7 @@ impl Agent for CodeAgent {
             "Given this design document and current implementation state: {}\n\nPlan the next step for code generation. Which component should we generate first? Consider dependencies and proper layering.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -108,7 +114,7 @@ impl Agent for CodeAgent {
             "Implement the following code generation plan: {}\n\nGenerate actual code in the appropriate programming language, with proper structure, error handling, and documentation.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -118,7 +124,7 @@ impl Agent for CodeAgent {
             "Analyze this generated code: {}\n\nIs it following best practices? Does it match the design? What improvements are needed?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

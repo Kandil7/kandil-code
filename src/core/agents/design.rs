@@ -1,12 +1,12 @@
 //! Design agent
-//! 
+//!
 //! Specialized agent for creating software architecture and design documents
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use crate::core::agents::base::{Agent, AgentState, ReActLoop};
-use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,9 +114,9 @@ impl DesignAgent {
             "As a Software Architect, design a system based on these requirements: {}.\n\nCreate a comprehensive design document covering architecture, components, data flow, technology stack, design patterns, and diagrams.",
             requirements_doc
         );
-        
+
         let result = loop_engine.run(self, &task).await?;
-        
+
         // For now, we'll create a basic document structure from the AI response
         // In a real implementation, we would properly parse the structured response
         Ok(DesignDocument {
@@ -142,7 +142,7 @@ impl Agent for DesignAgent {
             "Given these design requirements: {}\n\nCurrent state: Step {}/{}\n\nPlan the next step to design the system architecture. Consider architectural patterns, technology selection, and component decomposition.",
             state.task, state.current_step + 1, state.max_steps
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -152,12 +152,12 @@ impl Agent for DesignAgent {
         // - Selecting appropriate technologies
         // - Defining component interfaces
         // For simulation, we'll use the AI to generate design elements based on the plan
-        
+
         let prompt = format!(
             "Execute this design plan: {}\n\nGenerate specific architectural elements, component definitions, or technology recommendations.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -167,7 +167,7 @@ impl Agent for DesignAgent {
             "Analyze this design result: {}\n\nHow does this contribute to the overall system architecture? What aspects need refinement?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

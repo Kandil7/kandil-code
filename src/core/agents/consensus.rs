@@ -4,9 +4,9 @@
 //! to achieve higher accuracy and eliminate single-agent hallucinations
 
 use anyhow::Result;
+use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::task;
-use async_trait::async_trait;
 
 use crate::core::adapters::ai::AIProviderTrait;
 
@@ -55,7 +55,7 @@ impl ConsensusOrchestrator {
 
     pub async fn solve(&self, task: &str) -> Result<Solution> {
         let mut results = Vec::new();
-        
+
         // Run all agents concurrently
         let mut tasks = Vec::new();
         for agent in &self.agents {
@@ -63,7 +63,10 @@ impl ConsensusOrchestrator {
             let task_str = task.to_string();
             tasks.push(task::spawn(async move {
                 let solution = agent_clone.solve(&task_str).await;
-                Ok::<(String, Result<Solution>), anyhow::Error>((agent_clone.agent_type().to_string(), solution))
+                Ok::<(String, Result<Solution>), anyhow::Error>((
+                    agent_clone.agent_type().to_string(),
+                    solution,
+                ))
             }));
         }
 
@@ -91,17 +94,22 @@ impl ConsensusOrchestrator {
 
         // Apply consensus algorithm
         let consensus_result = self.vote(&results)?;
-        
+
         match consensus_result {
             VoteResult::Consensus(solutions) => {
                 // Take the highest confidence solution from the consensus
                 let best_solution = solutions
                     .iter()
-                    .max_by(|a, b| a.solution.confidence.partial_cmp(&b.solution.confidence).unwrap())
+                    .max_by(|a, b| {
+                        a.solution
+                            .confidence
+                            .partial_cmp(&b.solution.confidence)
+                            .unwrap()
+                    })
                     .unwrap()
                     .solution
                     .clone();
-                
+
                 // Optionally spawn devil's advocate to critique
                 if self.use_devil_advocate {
                     let critique = self.devil_advocate_analyze(&best_solution).await?;
@@ -114,11 +122,16 @@ impl ConsensusOrchestrator {
                 // In case of no consensus, return the highest confidence solution
                 let best_solution = solutions
                     .iter()
-                    .max_by(|a, b| a.solution.confidence.partial_cmp(&b.solution.confidence).unwrap())
+                    .max_by(|a, b| {
+                        a.solution
+                            .confidence
+                            .partial_cmp(&b.solution.confidence)
+                            .unwrap()
+                    })
                     .unwrap()
                     .solution
                     .clone();
-                
+
                 Ok(best_solution)
             }
         }
@@ -145,7 +158,8 @@ impl ConsensusOrchestrator {
 
         if agreement_ratio >= self.threshold {
             Ok(VoteResult::Consensus(high_confidence_solutions))
-        } else if agreement_ratio > 0.3 { // At least 30% agreement
+        } else if agreement_ratio > 0.3 {
+            // At least 30% agreement
             Ok(VoteResult::Split(high_confidence_solutions))
         } else {
             Ok(VoteResult::NoAgreement(solutions.to_vec()))
@@ -174,10 +188,10 @@ impl ConsensusOrchestrator {
             critique.content,
             solution.content // In a real implementation, we'd improve the solution based on critique
         );
-        
+
         // Adjust confidence based on critique
         solution.confidence = (solution.confidence + critique.confidence) / 2.0;
-        
+
         solution
     }
 }
@@ -191,8 +205,11 @@ pub struct CodeAgent {
 impl SpecializedAgent for CodeAgent {
     async fn solve(&self, task: &str) -> Result<Solution> {
         // Simulate getting code solution from AI
-        let response = self.provider.chat(&format!("Generate code for: {}", task)).await?;
-        
+        let response = self
+            .provider
+            .chat(&format!("Generate code for: {}", task))
+            .await?;
+
         Ok(Solution {
             content: response,
             confidence: 0.85,
@@ -216,8 +233,11 @@ pub struct DesignAgent {
 #[async_trait]
 impl SpecializedAgent for DesignAgent {
     async fn solve(&self, task: &str) -> Result<Solution> {
-        let response = self.provider.chat(&format!("Design solution for: {}", task)).await?;
-        
+        let response = self
+            .provider
+            .chat(&format!("Design solution for: {}", task))
+            .await?;
+
         Ok(Solution {
             content: response,
             confidence: 0.80,
@@ -241,8 +261,11 @@ pub struct SecurityAgent {
 #[async_trait]
 impl SpecializedAgent for SecurityAgent {
     async fn solve(&self, task: &str) -> Result<Solution> {
-        let response = self.provider.chat(&format!("Security implications for: {}", task)).await?;
-        
+        let response = self
+            .provider
+            .chat(&format!("Security implications for: {}", task))
+            .await?;
+
         Ok(Solution {
             content: response,
             confidence: 0.90,
@@ -266,7 +289,7 @@ mod tests {
 
     // Mock AI provider for testing
     struct MockAI;
-    
+
     impl MockAI {
         fn new() -> Arc<dyn AIProviderTrait> {
             // In a real test we'd create a mock implementation

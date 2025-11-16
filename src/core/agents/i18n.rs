@@ -1,13 +1,13 @@
 //! Internationalization (i18n) assistant
-//! 
+//!
 //! Assistant for managing internationalization and localization
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState};
-use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,18 +49,32 @@ impl I18nAssistant {
         Self {
             ai,
             supported_languages: vec![
-                "en".to_string(), "es".to_string(), "fr".to_string(), "de".to_string(),
-                "ja".to_string(), "ko".to_string(), "zh".to_string(), "ar".to_string(),
+                "en".to_string(),
+                "es".to_string(),
+                "fr".to_string(),
+                "de".to_string(),
+                "ja".to_string(),
+                "ko".to_string(),
+                "zh".to_string(),
+                "ar".to_string(),
             ],
             translation_cache: HashMap::new(),
         }
     }
 
-    pub async fn translate_text(&mut self, text: &str, target_lang: &str, source_lang: &str) -> Result<String> {
+    pub async fn translate_text(
+        &mut self,
+        text: &str,
+        target_lang: &str,
+        source_lang: &str,
+    ) -> Result<String> {
         let cache_key = format!("{}:{}:{}", source_lang, target_lang, text);
-        
-        if let Some(cached) = self.translation_cache.get(source_lang)
-            .and_then(|lang_map| lang_map.get(target_lang)) {
+
+        if let Some(cached) = self
+            .translation_cache
+            .get(source_lang)
+            .and_then(|lang_map| lang_map.get(target_lang))
+        {
             return Ok(cached.clone());
         }
 
@@ -75,19 +89,19 @@ impl I18nAssistant {
         );
 
         let translation = self.ai.chat(&prompt).await?;
-        
+
         // Cache the translation
         self.translation_cache
             .entry(source_lang.to_string())
             .or_insert_with(HashMap::new)
             .insert(target_lang.to_string(), translation.clone());
-        
+
         Ok(translation)
     }
 
     pub async fn translate_file(&self, file_path: &str, target_lang: &str) -> Result<String> {
         let content = std::fs::read_to_string(file_path)?;
-        
+
         let prompt = format!(
             r#"Translate this content to {}:
             
@@ -106,7 +120,7 @@ impl I18nAssistant {
         let mut quality_scores = HashMap::new();
         let mut missing_translations = HashMap::new();
         let consistency_issues = vec![];
-        
+
         // In a real implementation, this would scan all translation files
         // For simulation, we'll return basic data
         for lang in &self.supported_languages {
@@ -127,7 +141,11 @@ impl I18nAssistant {
         })
     }
 
-    pub async fn generate_language_pack(&self, base_language: &str, target_language: &str) -> Result<HashMap<String, String>> {
+    pub async fn generate_language_pack(
+        &self,
+        base_language: &str,
+        target_language: &str,
+    ) -> Result<HashMap<String, String>> {
         let prompt = format!(
             r#"Generate a complete language pack for {} based on {}.
             
@@ -143,13 +161,18 @@ impl I18nAssistant {
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         // For simulation, return an empty map
         Ok(HashMap::new())
     }
 
-    pub async fn review_translation(&self, original: &str, translation: &str, target_lang: &str) -> Result<TranslationReport> {
+    pub async fn review_translation(
+        &self,
+        original: &str,
+        translation: &str,
+        target_lang: &str,
+    ) -> Result<TranslationReport> {
         let prompt = format!(
             r#"Review this translation from English to {}:
             
@@ -163,7 +186,7 @@ impl I18nAssistant {
         );
 
         let review = self.ai.chat(&prompt).await?;
-        
+
         Ok(TranslationReport {
             source_language: "en".to_string(),
             target_language: target_lang.to_string(),
@@ -183,7 +206,7 @@ impl Agent for I18nAssistant {
             "As an i18n specialist, given this internationalization task: {}\n\nPlan the next i18n activity. Consider language support, cultural adaptation, and technical implementation.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -193,7 +216,7 @@ impl Agent for I18nAssistant {
             "Implement this i18n plan: {}\n\nTranslate content, update resource files, or improve localization processes.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -203,7 +226,7 @@ impl Agent for I18nAssistant {
             "Analyze these i18n results: {}\n\nHow does this affect global user experience and market reach?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }
