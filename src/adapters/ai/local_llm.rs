@@ -1,9 +1,9 @@
+use crate::config::layered::{Config, ModelConfig};
+use crate::errors::LocalModelError;
+use crate::models::catalog::{ModelSpec, MODEL_CATALOG};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::config::layered::{Config, ModelConfig};
-use crate::models::catalog::{ModelSpec, MODEL_CATALOG};
-use crate::errors::LocalModelError;
 
 // Placeholder struct that will be updated once candle implementation is ready
 pub struct LocalLLMAdapter {
@@ -30,7 +30,8 @@ impl LocalLLMAdapter {
                     .unwrap_or_else(|| std::env::current_dir().unwrap())
                     .join("kandil")
                     .join("models");
-                std::fs::create_dir_all(&path).map_err(|e| LocalModelError::IoError { source: e })?;
+                std::fs::create_dir_all(&path)
+                    .map_err(|e| LocalModelError::IoError { source: e })?;
                 path.join(&spec.filename)
             }
         };
@@ -54,8 +55,8 @@ impl LocalLLMAdapter {
 
     pub async fn default() -> Result<Self, LocalModelError> {
         // Load the default model based on hardware
-        use crate::core::hardware::detect_hardware;
         use crate::core::auto_config::AutoConfig;
+        use crate::core::hardware::detect_hardware;
 
         let hardware = detect_hardware();
         let auto_config = AutoConfig::from_hardware(&hardware);
