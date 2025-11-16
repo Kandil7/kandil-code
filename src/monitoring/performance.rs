@@ -2,12 +2,12 @@
 //!
 //! Contains modules for tracking and monitoring system performance and usage telemetry.
 
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use sysinfo::{CpuExt, SystemExt};
+use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
@@ -23,7 +23,7 @@ pub struct PerformanceMetrics {
     pub tokens_per_second: f64,
     pub model_usage: std::collections::HashMap<String, u64>, // Track usage by model
     pub request_types: std::collections::HashMap<String, u64>, // Track different request types
-    pub hardware_stats: Option<HardwareStats>, // Include hardware stats
+    pub hardware_stats: Option<HardwareStats>,               // Include hardware stats
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,7 +76,13 @@ impl PerformanceMonitor {
         self.request_times.insert(request_id, Instant::now());
     }
 
-    pub async fn record_response(&self, request_id: u64, tokens: usize, is_error: bool, model_name: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn record_response(
+        &self,
+        request_id: u64,
+        tokens: usize,
+        is_error: bool,
+        model_name: Option<&str>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Calculate latency for this request
         let latency = if let Some(start_time) = self.request_times.remove(&request_id) {
             start_time.1.elapsed()
@@ -102,9 +108,11 @@ impl PerformanceMonitor {
 
         // Calculate derived metrics
         if metrics.total_requests > 0 {
-            metrics.avg_tokens_per_request = metrics.total_tokens as f64 / metrics.total_requests as f64;
+            metrics.avg_tokens_per_request =
+                metrics.total_tokens as f64 / metrics.total_requests as f64;
             let total_millis = metrics.total_latency.as_millis() as f64;
-            metrics.avg_latency = Duration::from_millis((total_millis / metrics.total_requests as f64) as u64);
+            metrics.avg_latency =
+                Duration::from_millis((total_millis / metrics.total_requests as f64) as u64);
 
             // Calculate tokens per second (if we have a meaningful time period)
             let runtime = self.start_time.elapsed();
@@ -133,7 +141,10 @@ impl PerformanceMonitor {
 
     pub async fn record_request_type(&self, req_type: &str) {
         let mut metrics = self.metrics.write().await;
-        *metrics.request_types.entry(req_type.to_string()).or_insert(0) += 1;
+        *metrics
+            .request_types
+            .entry(req_type.to_string())
+            .or_insert(0) += 1;
     }
 
     pub async fn update_hardware_stats(&self) {
@@ -169,7 +180,10 @@ impl PerformanceMonitor {
         println!("  Requests: {}", metrics.total_requests);
         println!("  Tokens: {}", metrics.total_tokens);
         println!("  Avg Latency: {:?}", metrics.avg_latency);
-        println!("  Avg Tokens/Request: {:.1}", metrics.avg_tokens_per_request);
+        println!(
+            "  Avg Tokens/Request: {:.1}",
+            metrics.avg_tokens_per_request
+        );
         println!("  Tokens/Second: {:.1}", metrics.tokens_per_second);
 
         let total_cache_ops = metrics.cache_hits + metrics.cache_misses;
@@ -226,18 +240,21 @@ mod tests {
     #[tokio::test]
     async fn test_performance_monitor() {
         let monitor = PerformanceMonitor::new();
-        
+
         let request_id = 1;
         monitor.record_request(request_id).await;
-        
+
         // Simulate a small delay
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        
-        monitor.record_response(request_id, 100, false, None).await.unwrap();
+
+        monitor
+            .record_response(request_id, 100, false, None)
+            .await
+            .unwrap();
         monitor.record_cache_hit().await;
-        
+
         let metrics = monitor.get_metrics().await;
-        
+
         assert_eq!(metrics.total_requests, 1);
         assert_eq!(metrics.total_tokens, 100);
         assert_eq!(metrics.cache_hits, 1);

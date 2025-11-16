@@ -40,7 +40,7 @@ impl ShutdownManager {
     /// Wait for shutdown with a timeout
     pub async fn wait_for_shutdown_with_timeout(&self, timeout_duration: Duration) -> bool {
         match timeout(timeout_duration, self.shutdown_notify.notified()).await {
-            Ok(_) => true, // Shutdown signal received
+            Ok(_) => true,   // Shutdown signal received
             Err(_) => false, // Timeout occurred
         }
     }
@@ -67,7 +67,7 @@ impl ShutdownHandler {
     /// Register shutdown signal handlers (Ctrl+C, termination signals)
     pub async fn setup_signal_handlers(&self) -> Result<(), Box<dyn std::error::Error>> {
         let manager_clone = Arc::clone(&self.manager);
-        
+
         // Handle Ctrl+C
         tokio::spawn(async move {
             if tokio::signal::ctrl_c().await.is_ok() {
@@ -81,29 +81,35 @@ impl ShutdownHandler {
     }
 
     /// Perform graceful shutdown with timeout
-    pub async fn shutdown_gracefully(&self, timeout_duration: Duration) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn shutdown_gracefully(
+        &self,
+        timeout_duration: Duration,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Initiating graceful shutdown...");
-        
+
         // First, trigger the shutdown
         {
             let mut manager = self.manager.write().await;
             manager.trigger_shutdown();
         }
-        
+
         // Wait for shutdown with timeout
         let shutdown_completed = {
             let manager = self.manager.read().await;
-            manager.wait_for_shutdown_with_timeout(timeout_duration).await
+            manager
+                .wait_for_shutdown_with_timeout(timeout_duration)
+                .await
         };
-        
+
         if !shutdown_completed {
             eprintln!("Shutdown timeout exceeded, forcing termination...");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
-                "Graceful shutdown timed out"
-            ).into());
+                "Graceful shutdown timed out",
+            )
+            .into());
         }
-        
+
         println!("Graceful shutdown completed successfully.");
         Ok(())
     }
@@ -146,14 +152,14 @@ impl ExampleComponent {
 impl GracefulShutdown for ExampleComponent {
     async fn shutdown(&self) -> Result<(), Box<dyn std::error::Error>> {
         println!("Shutting down component: {}", self.name);
-        
+
         // Perform cleanup operations
         // For example:
         // - Flush pending requests
         // - Close database connections
         // - Save state to disk
         // - Wait for ongoing operations to complete
-        
+
         println!("Component {} shutdown complete", self.name);
         Ok(())
     }
@@ -168,7 +174,7 @@ mod tests {
     async fn test_shutdown_manager() {
         let mut shutdown_manager = ShutdownManager::new();
         assert!(!shutdown_manager.shutdown_received());
-        
+
         shutdown_manager.trigger_shutdown();
         assert!(shutdown_manager.shutdown_received());
     }
@@ -177,7 +183,7 @@ mod tests {
     async fn test_shutdown_handler() {
         let handler = ShutdownHandler::new();
         let timeout = Duration::from_millis(100);
-        
+
         // Test timeout scenario
         let result = handler.shutdown_gracefully(timeout).await;
         assert!(result.is_err()); // Should timeout since we didn't trigger shutdown

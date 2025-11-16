@@ -1,10 +1,10 @@
 //! Event handling for the TUI
-//! 
+//!
 //! Contains keyboard, mouse, and application events
 
+use anyhow::Result;
 use crossterm::event::{self, Event as CEvent, KeyEvent, MouseEvent};
 use std::time::Duration;
-use anyhow::Result;
 
 #[derive(Debug)]
 pub enum AppEvent {

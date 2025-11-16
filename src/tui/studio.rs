@@ -1,19 +1,19 @@
 //! Studio application for the TUI interface
-//! 
+//!
 //! Main application state and event loop
 
-use crate::tui::events::{EventHandler, AppEvent};
-use crate::tui::widgets::{FileExplorer, CodeViewer, AIChatWidget};
+use crate::tui::events::{AppEvent, EventHandler};
+use crate::tui::widgets::{AIChatWidget, CodeViewer, FileExplorer};
 use crate::utils::code_analysis::CodeAnalyzer;
 use anyhow::Result;
-use ratatui::{
-    backend::CrosstermBackend,
-    layout::{Layout, Constraint, Direction},
-    Frame, Terminal,
-};
 use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    Frame, Terminal,
 };
 use std::io;
 
@@ -41,8 +41,9 @@ impl StudioApp {
             "Cargo.toml".to_string(),
             "src/lib.rs".to_string(),
         ];
-        
-        let code_content = "// Sample code content\nfn main() {\n    println!(\"Hello, Kandil!\");\n}";
+
+        let code_content =
+            "// Sample code content\nfn main() {\n    println!(\"Hello, Kandil!\");\n}";
 
         Ok(Self {
             ui_state: UIState::FileExplorer,
@@ -90,7 +91,7 @@ impl StudioApp {
         // Restore terminal
         disable_raw_mode()?;
         execute!(io::stdout(), LeaveAlternateScreen)?;
-        
+
         Ok(())
     }
 
@@ -99,9 +100,9 @@ impl StudioApp {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(20),  // File Explorer
-                Constraint::Percentage(60),  // Code Viewer
-                Constraint::Percentage(20),  // AI Chat
+                Constraint::Percentage(20), // File Explorer
+                Constraint::Percentage(60), // Code Viewer
+                Constraint::Percentage(20), // AI Chat
             ])
             .split(f.size());
 
@@ -120,27 +121,28 @@ impl StudioApp {
                 // Cycle between UI states
                 self.cycle_ui_state();
             }
-            crossterm::event::KeyCode::Down => {
-                match self.ui_state {
-                    UIState::FileExplorer => self.file_explorer.next(),
-                    _ => {}
-                }
-            }
-            crossterm::event::KeyCode::Up => {
-                match self.ui_state {
-                    UIState::FileExplorer => self.file_explorer.previous(),
-                    _ => {}
-                }
-            }
+            crossterm::event::KeyCode::Down => match self.ui_state {
+                UIState::FileExplorer => self.file_explorer.next(),
+                _ => {}
+            },
+            crossterm::event::KeyCode::Up => match self.ui_state {
+                UIState::FileExplorer => self.file_explorer.previous(),
+                _ => {}
+            },
             crossterm::event::KeyCode::Enter => {
                 // For now, just simulate loading file content
                 if let UIState::FileExplorer = self.ui_state {
                     self.ai_chat.add_message("File loaded!".to_string());
                 }
             }
-            crossterm::event::KeyCode::Char('a') if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            crossterm::event::KeyCode::Char('a')
+                if key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 // Analyze current file with code analyzer
-                self.ai_chat.add_message("Analyzing file with Tree-sitter...".to_string());
+                self.ai_chat
+                    .add_message("Analyzing file with Tree-sitter...".to_string());
             }
             _ => {}
         }
