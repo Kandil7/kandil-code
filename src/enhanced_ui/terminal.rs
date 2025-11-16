@@ -12,6 +12,24 @@ use std::{
 };
 use tokio::sync::RwLock;
 
+/// Enhanced PTY manager for better isolation and session tracking
+#[derive(Clone)]
+pub struct PtyManager {
+    pty_system: Arc<dyn portable_pty::PtySystem + Send + Sync>,
+}
+
+impl PtyManager {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            pty_system: portable_pty::native_pty_system(),
+        })
+    }
+
+    pub fn create_pty_pair(&self, size: PtySize) -> Result<Box<dyn portable_pty::PtyPair + Send + Sync>> {
+        Ok(self.pty_system.openpty(size)?)
+    }
+}
+
 /// Represents the Kandil internal terminal runtime backed by a PTY.
 pub struct KandilTerminal {
     timeout: Duration,
@@ -19,6 +37,8 @@ pub struct KandilTerminal {
     execution_log: Arc<RwLock<Vec<ExecutionRecord>>>,
     permission_controller: PermissionController,
     output_processor: OutputProcessor,
+    pty_manager: PtyManager,  // Enhanced PTY isolation
+    session_id: String,       // For command logging and session tracking
 }
 
 impl Clone for KandilTerminal {
@@ -29,6 +49,8 @@ impl Clone for KandilTerminal {
             execution_log: self.execution_log.clone(),
             permission_controller: self.permission_controller.clone(),
             output_processor: self.output_processor.clone(),
+            pty_manager: self.pty_manager.clone(),
+            session_id: self.session_id.clone(),
         }
     }
 }
@@ -41,6 +63,8 @@ impl KandilTerminal {
             execution_log: Arc::new(RwLock::new(Vec::new())),
             permission_controller: PermissionController::default(),
             output_processor: OutputProcessor::default(),
+            pty_manager: PtyManager::new()?,
+            session_id: uuid::Uuid::new_v4().to_string(),
         })
     }
 
@@ -56,20 +80,47 @@ impl KandilTerminal {
         }
 
         let cwd = env::current_dir()?;
+        let start_time = Instant::now();
+
+        // Record the command execution with enhanced metadata
         let record = ExecutionRecord {
             command: parsed.clone(),
             timestamp: Utc::now(),
             cwd: cwd.clone(),
+            session_id: self.session_id.clone(),
+            start_time: start_time,
+            duration: Duration::from_secs(0), // Will update after execution
+            status: ExecutionStatus::Running,
         };
 
         let env_vars = self.env_vars.clone();
         let timeout = self.timeout;
+        let pty_size = PtySize {
+            rows: 40,
+            cols: 120,
+            pixel_width: 0,
+            pixel_height: 0,
+        };
+        let pty_manager = self.pty_manager.clone();
+
         let output = tokio::task::spawn_blocking(move || {
-            run_command_in_pty(&parsed, &env_vars, &cwd, timeout)
+            run_command_in_pty_enhanced(&parsed, &env_vars, &cwd, timeout, pty_manager, pty_size)
         })
         .await??;
 
-        self.execution_log.write().await.push(record);
+        // Update the record with execution results
+        let duration = start_time.elapsed();
+        let final_record = ExecutionRecord {
+            command: record.command,
+            timestamp: record.timestamp,
+            cwd: record.cwd,
+            session_id: record.session_id,
+            start_time: record.start_time,
+            duration,
+            status: if output.status_code == 0 { ExecutionStatus::Success } else { ExecutionStatus::Failed },
+        };
+
+        self.execution_log.write().await.push(final_record);
         let ai_analysis = self.output_processor.analyze(&output.stdout);
 
         Ok(CommandResult {
@@ -149,11 +200,13 @@ struct RawCommandResult {
     stderr: String,
 }
 
-fn run_command_in_pty(
+fn run_command_in_pty_enhanced(
     command: &str,
     env_vars: &HashMap<String, String>,
     cwd: &PathBuf,
     timeout: Duration,
+    pty_manager: PtyManager,
+    pty_size: PtySize,
 ) -> Result<RawCommandResult> {
     let mut cmd = build_shell_command(command);
     cmd.cwd(cwd);
@@ -162,18 +215,12 @@ fn run_command_in_pty(
         cmd.env(key, value);
     }
 
-    let pty_system = native_pty_system();
-    let pair = pty_system.openpty(PtySize {
-        rows: 40,
-        cols: 120,
-        pixel_width: 0,
-        pixel_height: 0,
-    })?;
+    let pair = pty_manager.create_pty_pair(pty_size)?;
 
-    let mut child = pair.slave.spawn_command(cmd)?;
-    drop(pair.slave);
+    let mut child = pair.slave().spawn_command(cmd)?;
+    drop(pair.slave());
 
-    let mut reader = pair.master.try_clone_reader()?;
+    let mut reader = pair.master().try_clone_reader()?;
     let reader_handle = thread::spawn(move || {
         let mut buffer = Vec::new();
         let mut chunk = [0u8; 4096];
@@ -197,6 +244,27 @@ fn run_command_in_pty(
         stdout,
         stderr: String::new(),
     })
+}
+
+fn run_command_in_pty(
+    command: &str,
+    env_vars: &HashMap<String, String>,
+    cwd: &PathBuf,
+    timeout: Duration,
+) -> Result<RawCommandResult> {
+    run_command_in_pty_enhanced(
+        command,
+        env_vars,
+        cwd,
+        timeout,
+        PtyManager::new()?,
+        PtySize {
+            rows: 40,
+            cols: 120,
+            pixel_width: 0,
+            pixel_height: 0,
+        }
+    )
 }
 
 fn wait_with_timeout(child: &mut Box<dyn Child + Send + Sync>, timeout: Duration) -> Result<i32> {
@@ -245,6 +313,17 @@ pub struct ExecutionRecord {
     pub command: String,
     pub timestamp: DateTime<Utc>,
     pub cwd: PathBuf,
+    pub session_id: String,
+    pub start_time: Instant,
+    pub duration: Duration,
+    pub status: ExecutionStatus,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExecutionStatus {
+    Running,
+    Success,
+    Failed,
 }
 
 #[derive(Debug, Clone)]

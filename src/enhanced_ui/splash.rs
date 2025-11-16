@@ -130,7 +130,14 @@ pub async fn execute_splash_command(
     args: &[String],
     ctx: &mut CommandContext,
 ) -> Result<SplashResult> {
-    match trigger {
+    // Normalize the trigger (trim and ensure it starts with /)
+    let normalized_trigger = if !trigger.starts_with('/') {
+        format!("/{}", trigger)
+    } else {
+        trigger.to_string()
+    };
+
+    match normalized_trigger.as_str() {
         "/ask" => handle_ask(args).await,
         "/refactor" => handle_refactor(args).await,
         "/test" => handle_test(args, ctx).await,
@@ -143,8 +150,43 @@ pub async fn execute_splash_command(
         "/history" => handle_history(ctx).await,
         "/undo" => handle_undo(ctx).await,
         "/jobs" => handle_jobs(ctx).await,
-        _ => Err(anyhow!("Unknown splash command: {}", trigger)),
+        _ => {
+            // Try to find partial matches for better error reporting
+            let matches: Vec<&SplashCommand> = SPLASH_COMMANDS
+                .iter()
+                .filter(|cmd| cmd.trigger.contains(&normalized_trigger))
+                .collect();
+
+            if !matches.is_empty() {
+                let suggestions: Vec<String> = matches.iter().map(|cmd| cmd.trigger).collect();
+                return Err(anyhow!(
+                    "Unknown command '{}'. Did you mean one of: {}",
+                    trigger,
+                    suggestions.join(", ")
+                ));
+            } else {
+                return Err(anyhow!("Unknown splash command: {}", trigger));
+            }
+        }
     }
+}
+
+/// Enhanced command execution with better parameter parsing and routing
+pub async fn execute_splash_command_enhanced(
+    input: &str,
+    ctx: &mut CommandContext,
+) -> Result<SplashResult> {
+    // Parse the input into command and arguments
+    let parts: Vec<&str> = input.split_whitespace().collect();
+    if parts.is_empty() {
+        return Err(anyhow!("Empty command"));
+    }
+
+    let trigger = parts[0];
+    let args: Vec<String> = parts[1..].iter().map(|s| s.to_string()).collect();
+
+    // Execute the command with context-aware routing
+    execute_splash_command(trigger, &args, ctx).await
 }
 
 pub fn suggest_commands(prefix: &str) -> Vec<&'static SplashCommand> {
@@ -152,6 +194,52 @@ pub fn suggest_commands(prefix: &str) -> Vec<&'static SplashCommand> {
         .iter()
         .filter(|cmd| cmd.trigger.starts_with(prefix))
         .collect()
+}
+
+/// Enhanced auto-completion that suggests commands based on current context
+pub fn contextual_suggestions(ctx: &CommandContext, prefix: &str) -> Vec<SplashSuggestion> {
+    let mut suggestions = Vec::new();
+
+    // Add basic command completion
+    for cmd in SPLASH_COMMANDS.iter() {
+        if cmd.trigger.starts_with(prefix) {
+            suggestions.push(SplashSuggestion {
+                command: cmd.trigger.to_string(),
+                description: cmd.description.to_string(),
+                score: 1.0, // Base score
+            });
+        }
+    }
+
+    // Add context-aware suggestions based on current project state
+    if prefix.is_empty() || prefix == "/" {
+        // Suggest most relevant commands based on project context
+        let project_suggestions = ctx.project_context.suggested_commands();
+        for cmd_name in project_suggestions {
+            if let Some(cmd) = SPLASH_COMMANDS.iter().find(|c| c.trigger == cmd_name) {
+                suggestions.push(SplashSuggestion {
+                    command: cmd.trigger.to_string(),
+                    description: cmd.description.to_string(),
+                    score: 2.0, // Higher score for contextually relevant commands
+                });
+            }
+        }
+    }
+
+    // Sort by score (descending)
+    suggestions.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Limit to top 5 suggestions
+    suggestions.truncate(5);
+    suggestions
+}
+
+/// Represents a command suggestion with relevance scoring
+#[derive(Debug, Clone)]
+pub struct SplashSuggestion {
+    pub command: String,
+    pub description: String,
+    pub score: f64,
 }
 
 #[derive(Default, Clone)]
