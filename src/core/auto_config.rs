@@ -2,7 +2,9 @@
 //!
 //! Automatically selects optimal settings based on hardware capabilities.
 
-use crate::config::layered::{Config, ModelConfig, PerformanceConfig, FallbackConfig, Quantization};
+use crate::config::layered::{
+    Config, FallbackConfig, ModelConfig, PerformanceConfig, Quantization,
+};
 use crate::core::hardware::HardwareProfile;
 use crate::models::catalog::MODEL_CATALOG;
 
@@ -63,10 +65,13 @@ impl AutoConfig {
             .unwrap_or_else(|| MODEL_CATALOG.first().unwrap()) // Fallback to first model
     }
 
-    fn select_context_size(profile: &HardwareProfile, model: &crate::models::catalog::ModelSpec) -> usize {
+    fn select_context_size(
+        profile: &HardwareProfile,
+        model: &crate::models::catalog::ModelSpec,
+    ) -> usize {
         // Start with the largest context size the model supports
         let max_supported = *model.context_sizes.iter().max().unwrap_or(&4096);
-        
+
         // Estimate based on available RAM (leaving some headroom)
         let ram_based = if profile.total_ram_gb > 0 {
             // Rough calculation: larger models need more memory per token
@@ -79,16 +84,20 @@ impl AutoConfig {
 
         // Use the smaller of model capability and RAM-based calculation
         let max_usable = max_supported.min(ram_based);
-        
+
         // Find the largest context size that fits within our limit
-        *model.context_sizes
+        *model
+            .context_sizes
             .iter()
             .filter(|&&size| size <= max_usable)
             .max()
             .unwrap_or(&4096) // Safe default
     }
 
-    fn tune_performance(profile: &HardwareProfile, _model_spec: &crate::models::catalog::ModelSpec) -> PerformanceConfig {
+    fn tune_performance(
+        profile: &HardwareProfile,
+        _model_spec: &crate::models::catalog::ModelSpec,
+    ) -> PerformanceConfig {
         let threads = if profile.total_ram_gb < 8 {
             // On low RAM systems, use fewer threads to reduce memory pressure
             profile.cpu_physical_cores.min(4).max(1) // At least 1 thread, max 4
@@ -102,7 +111,7 @@ impl AutoConfig {
         PerformanceConfig {
             threads,
             use_mmap,
-            batch_size: 512, // Standard batch size
+            batch_size: 512,         // Standard batch size
             target_latency_ms: 2000, // 2 second target for response time
             reserve_ram_gb: profile.total_ram_gb.saturating_div(4).max(2).min(8), // Reserve 25% or between 2-8GB
         }
@@ -111,8 +120,8 @@ impl AutoConfig {
     fn configure_fallback(profile: &HardwareProfile) -> FallbackConfig {
         FallbackConfig {
             enabled: profile.total_ram_gb < 16, // Enable fallback for systems with less than 16GB
-            cloud_provider: None, // User must configure API key
-            timeout_ms: 30000,    // 30 second timeout for fallback requests
+            cloud_provider: None,               // User must configure API key
+            timeout_ms: 30000,                  // 30 second timeout for fallback requests
         }
     }
 }

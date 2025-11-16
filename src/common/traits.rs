@@ -2,8 +2,8 @@
 //!
 //! Contains shared traits that are used across different modules.
 
-use async_trait::async_trait;
 use crate::errors::LocalModelError;
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait AIProvider: Send + Sync {

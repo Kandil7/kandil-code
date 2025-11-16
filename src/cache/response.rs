@@ -2,9 +2,9 @@
 //!
 //! Implements a simple in-memory cache with time-to-live for AI responses.
 
-use std::sync::Arc;
-use std::time::{SystemTime, Duration, UNIX_EPOCH};
 use dashmap::DashMap;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub struct ResponseCache {
     cache: Arc<DashMap<String, CachedResponse>>,
@@ -28,14 +28,14 @@ impl ResponseCache {
     pub async fn get(&self, prompt: &str) -> Option<String> {
         let hash = self.calculate_hash(prompt);
         let key = hash.to_string();
-        
+
         if let Some(entry) = self.cache.get(&key) {
             // Check if entry is expired
             let current_time = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_secs();
-                
+
             if current_time - entry.created_at < self.ttl.as_secs() {
                 // Entry is still valid
                 Some(entry.response.clone())
@@ -52,26 +52,26 @@ impl ResponseCache {
     pub async fn insert(&self, prompt: &str, response: String) {
         let hash = self.calculate_hash(prompt);
         let key = hash.to_string();
-        
+
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-            
+
         self.cache.insert(
-            key, 
+            key,
             CachedResponse {
                 response,
                 created_at,
                 prompt_hash: hash,
-            }
+            },
         );
     }
 
     pub async fn remove(&self, prompt: &str) -> Option<String> {
         let hash = self.calculate_hash(prompt);
         let key = hash.to_string();
-        
+
         self.cache.remove(&key).map(|(_, entry)| entry.response)
     }
 
@@ -80,10 +80,9 @@ impl ResponseCache {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-            
-        self.cache.retain(|_, entry| {
-            current_time - entry.created_at < self.ttl.as_secs()
-        });
+
+        self.cache
+            .retain(|_, entry| current_time - entry.created_at < self.ttl.as_secs());
     }
 
     pub async fn size(&self) -> usize {
@@ -118,39 +117,39 @@ mod tests {
     #[tokio::test]
     async fn test_cache_insert_and_get() {
         let cache = ResponseCache::new(60); // 60 minute TTL
-        
+
         let prompt = "test prompt";
         let response = "test response".to_string();
-        
+
         cache.insert(prompt, response.clone()).await;
         let retrieved = cache.get(prompt).await;
-        
+
         assert_eq!(retrieved, Some(response));
     }
 
     #[tokio::test]
     async fn test_cache_expiration() {
         let cache = ResponseCache::new(0); // 0 second TTL (immediate expiration)
-        
+
         let prompt = "test prompt";
         let response = "test response".to_string();
-        
+
         cache.insert(prompt, response).await;
         let retrieved = cache.get(prompt).await;
-        
+
         assert_eq!(retrieved, None);
     }
 
     #[tokio::test]
     async fn test_cache_clear_expired() {
         let cache = ResponseCache::new(0); // 0 second TTL
-        
+
         let prompt = "test prompt";
         let response = "test response".to_string();
-        
+
         cache.insert(prompt, response).await;
         cache.clear_expired().await;
-        
+
         assert_eq!(cache.size().await, 0);
     }
 }

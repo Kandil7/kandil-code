@@ -2,9 +2,9 @@
 //!
 //! Implements semantic similarity-based caching for AI responses.
 
-use std::sync::Arc;
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use tiktoken_rs::ChatCompletionRequestMessage;
 
 // We'll use a simple embedding approach for now - in production,
@@ -45,7 +45,7 @@ impl Clone for CacheEntry {
 struct CacheConfig {
     max_size: usize,
     similarity_threshold: f32, // 0.95 = 95% similarity
-    ttl_seconds: u64, // Time to live for cache entries
+    ttl_seconds: u64,          // Time to live for cache entries
 }
 
 impl Default for CacheConfig {
@@ -53,7 +53,7 @@ impl Default for CacheConfig {
         Self {
             max_size: 10000,
             similarity_threshold: 0.90, // 90% similarity threshold
-            ttl_seconds: 3600, // 1 hour TTL
+            ttl_seconds: 3600,          // 1 hour TTL
         }
     }
 }
@@ -80,13 +80,13 @@ impl SemanticCache {
                     .as_secs(),
                 Ordering::Relaxed,
             );
-            
+
             // Check if entry is expired
             if self.is_expired(&entry.created_at) {
                 self.exact_store.remove(&exact_hash);
                 return None;
             }
-            
+
             return Some(entry.response.clone());
         }
 
@@ -94,7 +94,7 @@ impl SemanticCache {
         // In a real implementation we would generate proper embeddings
         // For now, we'll use a simplified approach based on token analysis
         let similarity_result = self.find_semantic_match(prompt).await;
-        
+
         if let Some(response) = similarity_result {
             Some(response)
         } else {
@@ -108,33 +108,33 @@ impl SemanticCache {
         // 1. Generate embeddings for the prompt
         // 2. Search the HNSW index for similar embeddings
         // 3. Return the most similar cached response
-        
+
         // For now, we'll do a simple keyword-based approach
         let prompt_lower = prompt.to_lowercase();
         let prompt_tokens: Vec<&str> = prompt_lower.split_whitespace().collect();
-        
+
         // Check store for cache entries with significant overlap in keywords
         for entry in self.store.iter() {
             if self.is_expired(&entry.created_at) {
                 continue;
             }
-            
+
             let cached_response_lower = entry.response.to_lowercase();
             let cached_tokens: Vec<&str> = cached_response_lower.split_whitespace().collect();
-            
+
             // Calculate keyword overlap
             let overlap: usize = prompt_tokens
                 .iter()
                 .filter(|token| cached_tokens.contains(token))
                 .count();
-                
+
             let total_tokens = prompt_tokens.len().max(cached_tokens.len());
-            let similarity = if total_tokens > 0 { 
-                overlap as f32 / total_tokens as f32 
-            } else { 
-                0.0 
+            let similarity = if total_tokens > 0 {
+                overlap as f32 / total_tokens as f32
+            } else {
+                0.0
             };
-            
+
             if similarity >= self.config.similarity_threshold {
                 // Update access stats
                 entry.hit_count.fetch_add(1, Ordering::Relaxed);
@@ -145,11 +145,11 @@ impl SemanticCache {
                         .as_secs(),
                     Ordering::Relaxed,
                 );
-                
+
                 return Some(entry.response.clone());
             }
         }
-        
+
         None
     }
 
@@ -174,7 +174,7 @@ impl SemanticCache {
                 created_at
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_secs()
+                    .as_secs(),
             ),
             created_at,
         };
@@ -188,7 +188,8 @@ impl SemanticCache {
 
     async fn evict_lru(&self) {
         // Remove least recently used entry
-        let lru_entry = self.store
+        let lru_entry = self
+            .store
             .iter()
             .filter(|entry| !self.is_expired(&entry.created_at))
             .min_by_key(|entry| entry.last_access.load(Ordering::Relaxed));
@@ -209,12 +210,15 @@ impl SemanticCache {
 
     fn count_tokens(&self, text: &str) -> usize {
         // Use tiktoken_rs to count tokens accurately
-        match num_tokens_from_messages("gpt-3.5-turbo", &[ChatCompletionRequestMessage {
-            role: "user".to_string(),
-            content: Some(text.to_string()),
-            name: None,
-            function_call: None,
-        }]) {
+        match num_tokens_from_messages(
+            "gpt-3.5-turbo",
+            &[ChatCompletionRequestMessage {
+                role: "user".to_string(),
+                content: Some(text.to_string()),
+                name: None,
+                function_call: None,
+            }],
+        ) {
             Ok(count) => count,
             Err(_) => {
                 // Fallback to a rough character-based estimate if token counting fails
@@ -226,7 +230,7 @@ impl SemanticCache {
         if self.config.ttl_seconds == 0 {
             return false; // No TTL
         }
-        
+
         match created_at.elapsed() {
             Ok(duration) => duration.as_secs() > self.config.ttl_seconds,
             Err(_) => true, // If there's an error with time, consider it expired

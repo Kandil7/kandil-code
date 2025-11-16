@@ -1,4 +1,11 @@
+use crate::adapters::{edge, linux, macos, mobile, windows};
+use crate::benchmark::CrossPlatformBenchmark;
 use crate::core::adapters::ai::factory::AIProviderFactory;
+use crate::core::hardware::{detect_hardware, PlatformKind};
+use crate::core::prompting::{PromptIntent, PromptRouter};
+use crate::enhanced_ui;
+use crate::security::mobile as mobile_security;
+use crate::security::platform::PlatformHardener;
 use crate::utils::config::{Config, SecureKey};
 use crate::utils::plugins::PluginManager;
 use crate::utils::project_manager::ProjectManager;
@@ -9,7 +16,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use futures_util::stream::StreamExt;
 use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
+use tokio::{fs, io::AsyncWriteExt, task};
 
 #[derive(Parser)]
 #[command(name = "kandil")]
@@ -83,6 +90,26 @@ pub enum Commands {
     Auth {
         #[command(subcommand)]
         sub: AuthSub,
+    },
+    /// Windows-specific local runtime helpers
+    Windows {
+        #[command(subcommand)]
+        sub: WindowsSub,
+    },
+    /// macOS-specific runtime helpers
+    Macos {
+        #[command(subcommand)]
+        sub: MacosSub,
+    },
+    /// Linux-specific runtime helpers
+    Linux {
+        #[command(subcommand)]
+        sub: LinuxSub,
+    },
+    /// Mobile & edge runtime helpers
+    Mobile {
+        #[command(subcommand)]
+        sub: MobileSub,
     },
 }
 
@@ -721,6 +748,44 @@ pub enum AuthSub {
     Login { provider: String },
 }
 
+#[derive(Subcommand)]
+pub enum WindowsSub {
+    /// Show the status of local adapters (Ollama WSL2, LM Studio, GPT4All, Foundry)
+    Status,
+    /// Run GPU passthrough diagnostics for WSL2
+    CheckGpu,
+    /// Print WSL2 + Ollama setup instructions
+    SetupWsl2,
+}
+
+#[derive(Subcommand)]
+pub enum MacosSub {
+    /// Display Core ML status and ANE availability
+    Status,
+    /// Show setup instructions for Core ML runtimes
+    SetupCoreml,
+}
+
+#[derive(Subcommand)]
+pub enum LinuxSub {
+    /// Display local runtime status (Ollama socket, CUDA availability)
+    Status,
+    /// Run hardening checks for the current system
+    Doctor,
+    /// Show recommended setup instructions for Linux hosts
+    Setup,
+}
+
+#[derive(Subcommand)]
+pub enum MobileSub {
+    /// Create an encrypted-ready bundle for iOS devices
+    IosSync,
+    /// Prepare an Android-ready bundle for Google AI Core / Termux
+    AndroidSync,
+    /// Export an ONNX-ready manifest for edge devices
+    EdgeSnapshot,
+}
+
 pub async fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Some(Commands::Init) => init_project().await?,
@@ -736,6 +801,10 @@ pub async fn run(cli: Cli) -> Result<()> {
         Some(Commands::Config { sub }) => handle_config(sub).await?,
         Some(Commands::LocalModel { sub }) => handle_local_model(sub).await?,
         Some(Commands::Auth { sub }) => handle_auth(sub).await?,
+        Some(Commands::Windows { sub }) => handle_windows(sub).await?,
+        Some(Commands::Macos { sub }) => handle_macos(sub).await?,
+        Some(Commands::Linux { sub }) => handle_linux(sub).await?,
+        Some(Commands::Mobile { sub }) => handle_mobile(sub).await?,
         None => {
             println!("Kandil Code - Intelligent Development Platform");
             println!("Use --help for commands");
@@ -764,6 +833,10 @@ async fn init_project() -> Result<()> {
 }
 
 async fn chat(message: String) -> Result<()> {
+    if message.trim().is_empty() {
+        return enhanced_ui::repl::run_repl().await;
+    }
+
     let config = Config::load()?;
     let factory = AIProviderFactory::new(config.clone());
     let ai = Arc::new(factory.create_ai(&config.ai_provider, &config.ai_model)?);
@@ -1629,7 +1702,7 @@ async fn handle_config(sub: ConfigSub) -> Result<()> {
 async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
     match sub {
         LocalModelSub::List { compatible } => {
-            let hardware = crate::core::hardware::detect_hardware();
+            let hardware = detect_hardware();
             let catalog = &crate::models::catalog::MODEL_CATALOG;
 
             println!("Available Models:");
@@ -1670,7 +1743,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
                 .find(|m| m.name == model)
                 .ok_or_else(|| anyhow::anyhow!("Unknown model: {}", model))?;
 
-            let hardware = crate::core::hardware::detect_hardware();
+            let hardware = detect_hardware();
             if !force && model_spec.ram_required_gb > hardware.total_ram_gb {
                 anyhow::bail!(
                     "Insufficient RAM. Model requires {}GB, you have {}GB. Use --force to override.",
@@ -1687,7 +1760,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
 
             // Create directory if it doesn't exist
             if let Some(parent) = path.parent() {
-                tokio::fs::create_dir_all(parent).await?;
+                fs::create_dir_all(parent).await?;
             }
 
             download_model(model_spec, &path).await?;
@@ -1703,7 +1776,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
 
             let path = get_model_path(&model_spec.filename).await?;
             if path.exists() {
-                tokio::fs::remove_file(&path).await?;
+                fs::remove_file(&path).await?;
                 println!("✅ Model {} removed successfully", model);
             } else {
                 println!("Model {} not found at {:?}", model, path);
@@ -1739,8 +1812,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
             println!("Note: This would normally update the default model in your config file.");
         }
         LocalModelSub::Status => {
-            // Implement status check based on hardware detection and installed models
-            let hardware = crate::core::hardware::detect_hardware();
+            let hardware = detect_hardware();
             let catalog = &crate::models::catalog::MODEL_CATALOG;
 
             println!("Hardware Profile:");
@@ -1752,6 +1824,7 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
                 "  CPU: {} physical cores, {} logical cores",
                 hardware.cpu_physical_cores, hardware.cpu_logical_cores
             );
+            println!("  Disk free: {}GB", hardware.free_disk_gb);
             if let Some(gpu) = &hardware.gpu {
                 println!(
                     "  GPU: {} {} with {}GB memory",
@@ -1760,36 +1833,86 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
             } else {
                 println!("  GPU: None detected");
             }
+            println!("  Platform: {:?}\n", hardware.platform);
 
-            // Count installed models
-            let installed_count = catalog
-                .iter()
-                .filter(|m| {
-                    // Check if model file exists
-                    if let Ok(path) =
-                        tokio::runtime::Handle::current().block_on(get_model_path(&m.filename))
-                    {
-                        path.exists()
-                    } else {
-                        false
-                    }
-                })
-                .count();
+            let models_dir = models_root().await?;
 
+            let mut installed_count = 0usize;
+            for model in catalog.iter() {
+                let path = models_dir.join(&model.filename);
+                if fs::metadata(&path).await.is_ok() {
+                    installed_count += 1;
+                }
+            }
             println!("Installed models: {}", installed_count);
+
+            match hardware.platform {
+                PlatformKind::Windows | PlatformKind::WindowsWsl => {
+                    let status = windows::WindowsAdapterStatus::gather().await;
+                    println!(
+                        "WSL IP: {}",
+                        status.wsl_ip.unwrap_or_else(|| "not detected".to_string())
+                    );
+                    println!("  Ollama (WSL2): {}", bool_icon(status.ollama_reachable));
+                    println!("  LM Studio API: {}", bool_icon(status.lmstudio_reachable));
+                    println!("  GPT4All API: {}", bool_icon(status.gpt4all_reachable));
+                    println!(
+                        "  Foundry Local API: {}",
+                        bool_icon(status.foundry_reachable)
+                    );
+                    let gpu_report = windows::check_wsl_gpu();
+                    println!("  GPU passthrough: {}", gpu_report.message);
+                }
+                PlatformKind::MacOs => {
+                    let status = macos::CoremlRuntimeStatus::detect();
+                    println!(
+                        "Core ML tools installed: {}",
+                        bool_icon(status.coremltools_available)
+                    );
+                    println!(
+                        "Apple Neural Engine available: {}",
+                        bool_icon(status.ane_available)
+                    );
+                    for note in status.notes {
+                        println!("  - {}", note);
+                    }
+                }
+                PlatformKind::Linux => {
+                    let status = linux::LinuxRuntimeStatus::detect();
+                    println!("Ollama socket present: {}", bool_icon(status.ollama_socket));
+                    println!("CUDA detected: {}", bool_icon(status.cuda_available));
+                    for note in status.notes {
+                        println!("  - {}", note);
+                    }
+                }
+                PlatformKind::Unknown => {
+                    println!("Platform-specific runtime diagnostics unavailable.");
+                }
+            }
         }
     }
     Ok(())
 }
 
-async fn get_model_path(filename: &str) -> Result<std::path::PathBuf> {
+async fn models_root() -> Result<std::path::PathBuf> {
     let path = dirs::data_dir()
         .unwrap_or_else(|| std::env::current_dir().unwrap())
         .join("kandil")
         .join("models");
+    fs::create_dir_all(&path).await?;
+    Ok(path)
+}
 
-    tokio::fs::create_dir_all(&path).await?;
-    Ok(path.join(filename))
+fn bool_icon(value: bool) -> &'static str {
+    if value {
+        "✅"
+    } else {
+        "⚠️"
+    }
+}
+
+async fn get_model_path(filename: &str) -> Result<std::path::PathBuf> {
+    Ok(models_root().await?.join(filename))
 }
 
 async fn download_model(
@@ -1811,7 +1934,7 @@ async fn download_model(
         .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
         .unwrap());
 
-    let mut file = tokio::io::BufWriter::new(tokio::fs::File::create(path).await?);
+    let mut file = tokio::io::BufWriter::new(fs::File::create(path).await?);
     let mut stream = response.bytes_stream();
 
     while let Some(chunk) = stream.next().await {
@@ -1825,20 +1948,30 @@ async fn download_model(
     Ok(())
 }
 
-async fn benchmark_model(name: &str, _format: &str) -> Result<()> {
-    println!("🔍 Benchmarking model: {}", name);
+async fn benchmark_model(name: &str, format: &str) -> Result<()> {
+    let cfg = Config::load()?;
+    let factory = AIProviderFactory::new(cfg.clone());
+    let ai = Arc::new(factory.create_ai(&cfg.ai_provider, name)?);
+    let suite = CrossPlatformBenchmark::new();
+    let report = suite.run(ai).await?;
 
-    // Skip actual benchmarking in this implementation since we don't have
-    // the model loaded yet, but in a real implementation we would:
-    // 1. Load the model
-    // 2. Run several test prompts
-    // 3. Measure tokens per second, latency, etc.
-
-    println!("Note: Full benchmarking requires model loading which is complex to implement here.");
-    println!("In a complete implementation, this would test:");
-    println!("  - Simple Completion (fibonacci function)");
-    println!("  - Refactoring (iterator conversion)");
-    println!("  - Architecture (system design)");
+    match format {
+        "json" => {
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
+        _ => {
+            println!("🔍 Benchmark for {} ({})", report.model, report.provider);
+            println!("Average latency: {} ms", report.average_latency_ms);
+            println!("Tokens generated: {}", report.total_tokens);
+            println!("\nPrompt Results:");
+            for sample in report.samples {
+                println!(
+                    "  • {} → {} ms, {} tokens",
+                    sample.prompt, sample.latency_ms, sample.output_tokens
+                );
+            }
+        }
+    }
 
     Ok(())
 }
@@ -1857,6 +1990,136 @@ async fn handle_auth(sub: AuthSub) -> Result<()> {
             }
             SecureKey::save(&provider, &key)?;
             println!("API key saved for {}", provider);
+        }
+    }
+    Ok(())
+}
+
+async fn handle_windows(sub: WindowsSub) -> Result<()> {
+    match sub {
+        WindowsSub::Status => {
+            let status = windows::WindowsAdapterStatus::gather().await;
+            println!(
+                "WSL IP: {}",
+                status.wsl_ip.unwrap_or_else(|| "not detected".to_string())
+            );
+            println!(
+                "Ollama (WSL2) reachable: {}",
+                if status.ollama_reachable {
+                    "✅"
+                } else {
+                    "⚠️"
+                }
+            );
+            println!(
+                "LM Studio API reachable: {}",
+                if status.lmstudio_reachable {
+                    "✅"
+                } else {
+                    "⚠️"
+                }
+            );
+            println!(
+                "GPT4All API reachable: {}",
+                if status.gpt4all_reachable {
+                    "✅"
+                } else {
+                    "⚠️"
+                }
+            );
+            println!(
+                "Foundry Local reachable: {}",
+                if status.foundry_reachable {
+                    "✅"
+                } else {
+                    "⚠️"
+                }
+            );
+        }
+        WindowsSub::CheckGpu => {
+            let report = windows::check_wsl_gpu();
+            println!("{}", report.message);
+        }
+        WindowsSub::SetupWsl2 => {
+            println!("{}", windows::setup_wsl2_instructions());
+        }
+    }
+    Ok(())
+}
+
+async fn handle_macos(sub: MacosSub) -> Result<()> {
+    match sub {
+        MacosSub::Status => {
+            let status = macos::CoremlRuntimeStatus::detect();
+            println!(
+                "Core ML tools installed: {}",
+                bool_icon(status.coremltools_available)
+            );
+            println!(
+                "Apple Neural Engine available: {}",
+                bool_icon(status.ane_available)
+            );
+            for note in status.notes {
+                println!("  - {}", note);
+            }
+        }
+        MacosSub::SetupCoreml => {
+            println!("{}", macos::setup_instructions());
+        }
+    }
+    Ok(())
+}
+
+async fn handle_linux(sub: LinuxSub) -> Result<()> {
+    match sub {
+        LinuxSub::Status => {
+            let status = linux::LinuxRuntimeStatus::detect();
+            println!("Ollama socket present: {}", bool_icon(status.ollama_socket));
+            println!("CUDA detected: {}", bool_icon(status.cuda_available));
+            for note in status.notes {
+                println!("  - {}", note);
+            }
+        }
+        LinuxSub::Doctor => {
+            let hardware = detect_hardware();
+            PlatformHardener::new(&hardware).apply()?;
+            println!("Ran Linux platform hardening checks. Review warnings above, if any.");
+        }
+        LinuxSub::Setup => {
+            println!("{}", linux::setup_instructions());
+        }
+    }
+    Ok(())
+}
+
+async fn handle_mobile(sub: MobileSub) -> Result<()> {
+    let models_dir = models_root().await?;
+    match sub {
+        MobileSub::IosSync => {
+            let dir = models_dir.clone();
+            let export = task::spawn_blocking(move || mobile::export_ios_bundle(&dir)).await??;
+            mobile_security::enforce_ios_bundle_security(&export)?;
+            println!("📦 iOS bundle created at {}", export.display());
+            println!(
+                "Copy this directory into iCloud Drive and import it from the Kandil iOS app."
+            );
+        }
+        MobileSub::AndroidSync => {
+            let dir = models_dir.clone();
+            let export =
+                task::spawn_blocking(move || mobile::export_android_bundle(&dir)).await??;
+            mobile_security::enforce_android_bundle_security(&export)?;
+            println!("🤖 Android bundle created at {}", export.display());
+            println!("Transfer it to /sdcard/kandil/models and use Termux or AI Core to import.");
+        }
+        MobileSub::EdgeSnapshot => {
+            let dir = models_dir.clone();
+            let export = task::spawn_blocking(move || edge::export_edge_snapshot(&dir)).await??;
+            mobile_security::enforce_edge_bundle_security(&export)?;
+            println!("🛠️ Edge manifest written to {}", export.display());
+            println!(
+                "Use the manifest to drive ONNX exports for Raspberry Pi / Jetson deployments."
+            );
         }
     }
     Ok(())

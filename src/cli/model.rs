@@ -2,15 +2,18 @@
 //!
 //! Contains commands for managing local models.
 
-use clap::Subcommand;
-use indicatif::{ProgressBar, ProgressStyle};
-use tokio;
-use std::path::PathBuf;
 use anyhow::Result;
+use clap::Subcommand;
+use futures_util::StreamExt;
+use indicatif::{ProgressBar, ProgressStyle};
+use std::path::PathBuf;
+use tokio;
 
 use crate::config::layered::Config;
 use crate::core::hardware::detect_hardware;
 use crate::models::catalog::{MODEL_CATALOG, ModelSpec};
+use crate::security::model::ModelSecurityValidator;
+use crate::security::platform::PlatformHardener;
 
 #[derive(Subcommand)]
 pub enum ModelCommand {
@@ -98,6 +101,7 @@ pub async fn handle_model_command(cmd: ModelCommand) -> Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("Unknown model: {}", name))?;
 
             let hardware = detect_hardware();
+            PlatformHardener::new(&hardware).apply()?;
             if !force && model.ram_required_gb > hardware.total_ram_gb {
                 anyhow::bail!(
                     "Insufficient RAM. Model requires {}GB, you have {}GB. Use --force to override.",
@@ -118,7 +122,9 @@ pub async fn handle_model_command(cmd: ModelCommand) -> Result<()> {
             }
 
             download_model(model, &path).await?;
-            // Note: Verification would require SHA256 which isn't in the model spec
+            let digest = ModelSecurityValidator::verify_artifact(&path, None).await?;
+            ModelSecurityValidator::persist_digest(&path, &digest)?;
+            println!("🔐 Stored checksum for {}: {}", name, digest);
             
             println!("✅ Model {} installed successfully", name);
         }
@@ -164,7 +170,19 @@ pub async fn handle_model_command(cmd: ModelCommand) -> Result<()> {
 
             let path = get_model_path(&model.filename).await?;
             if path.exists() {
-                println!("✅ Model {} found and verified at {:?}", name, path);
+                let hardware = detect_hardware();
+                PlatformHardener::new(&hardware).apply()?;
+
+                let stored = ModelSecurityValidator::load_stored_digest(&path)?;
+                let digest =
+                    ModelSecurityValidator::verify_artifact(&path, stored.as_deref()).await?;
+
+                if stored.is_some() {
+                    println!("✅ Model {} checksum verified ({digest}).", name);
+                } else {
+                    println!("ℹ️  Recorded checksum for {}: {}", name, digest);
+                    ModelSecurityValidator::persist_digest(&path, &digest)?;
+                }
             } else {
                 println!("❌ Model {} not found at {:?}", name, path);
             }

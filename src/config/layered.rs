@@ -1,9 +1,9 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use anyhow::Result;
 
-use crate::core::hardware::detect_hardware;
 use crate::core::auto_config::AutoConfig;
+use crate::core::hardware::detect_hardware;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StrategyConfig {
@@ -38,7 +38,7 @@ pub struct ModelConfig {
     pub path: Option<PathBuf>,
     pub context_size: usize,
     pub quantization: Quantization,
-    pub threads: Option<usize>,  // Added for model loading
+    pub threads: Option<usize>, // Added for model loading
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
