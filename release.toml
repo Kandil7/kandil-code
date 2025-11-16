@@ -4,7 +4,7 @@
 
 [package]
 name = "kandil_code"
-version = "2.0.0"  # This should match the version in Cargo.toml
+version = "2.1.0"  # This should match the version in Cargo.toml
 description = "Intelligent development platform (CLI + TUI + Multi-Agent System)"
 repository = "https://github.com/Kandil7/kandil_code"
 

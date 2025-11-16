@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Language-Rust-orange.svg)](https://www.rust-lang.org/)
-[![Version](https://img.shields.io/badge/Version-v2.0.0-blue)](https://github.com/Kandil7/kandil_code/releases)
+[![Version](https://img.shields.io/badge/Version-v2.1.0-blue)](https://github.com/Kandil7/kandil_code/releases)
 
 ## Table of Contents
 - [Overview](#overview)

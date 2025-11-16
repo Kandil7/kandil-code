@@ -1,8 +1,8 @@
 [package]
 name = "kandil_code"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
-description = "Intelligent development platform (CLI + TUI + Multi-Agent System) with cross-platform AI model benchmarking and system diagnostics"
+description = "Intelligent development platform (CLI + TUI + Multi-Agent System) with cross-platform AI model benchmarking, system diagnostics, and advanced development tools"
 authors = ["Kandil7 <your-email@example.com>"]
 license = "MIT"
 repository = "https://github.com/Kandil7/kandil_code"
@@ -30,7 +30,6 @@ clap = { version = "4.0", features = ["derive"] }
 jsonrpc-core = "18.0"
 jsonrpc-http-server = "18.0"
 lsp-types = "0.97"
-serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
@@ -63,7 +62,6 @@ dashmap = "5.4"
 async-openai = "0.14"
 rusqlite = { version = "0.29", features = ["bundled"] }
 rusqlite_migration = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
 backoff = { version = "0.4", features = ["tokio"] }
 toml = "0.8"
 regex = "1.0"
