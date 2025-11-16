@@ -23,9 +23,9 @@ fn switch_model_rejects_invalid_provider() {
 fn config_costs_shows_message() {
     let mut cmd = assert_cmd::Command::cargo_bin("kandil").unwrap();
     cmd.args(["config", "costs"]);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Cost tracking is available when using AI features"));
+    cmd.assert().success().stdout(predicate::str::contains(
+        "Cost tracking is available when using AI features",
+    ));
 }
 
 #[test]

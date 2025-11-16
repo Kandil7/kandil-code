@@ -1,5 +1,5 @@
 //! Code refactoring utilities
-//! 
+//!
 //! Contains functionality for code refactoring with preview/apply workflow
 
 use anyhow::Result;
@@ -38,12 +38,17 @@ impl RefactorEngine {
         }
     }
 
-    pub fn preview_refactor(&mut self, file_path: &str, refactor_type: &str, params: &RefactorParams) -> Result<String> {
+    pub fn preview_refactor(
+        &mut self,
+        file_path: &str,
+        refactor_type: &str,
+        params: &RefactorParams,
+    ) -> Result<String> {
         let original_code = std::fs::read_to_string(file_path)?;
-        
+
         // Apply the refactoring transformation
         let refactored_code = self.apply_refactor(&original_code, refactor_type, params)?;
-        
+
         // Store the operation for potential application
         let operation = RefactorOperation {
             file_path: file_path.to_string(),
@@ -52,13 +57,18 @@ impl RefactorEngine {
             operation_type: refactor_type.to_string(),
             description: format!("{} operation on {}", refactor_type, file_path),
         };
-        
+
         self.operations.push(operation);
-        
+
         Ok(refactored_code)
     }
 
-    fn apply_refactor(&self, code: &str, refactor_type: &str, params: &RefactorParams) -> Result<String> {
+    fn apply_refactor(
+        &self,
+        code: &str,
+        refactor_type: &str,
+        params: &RefactorParams,
+    ) -> Result<String> {
         match refactor_type {
             "rename_variable" => self.rename_variable(code, params),
             "extract_function" => self.extract_function(code, params),

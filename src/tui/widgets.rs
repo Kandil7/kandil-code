@@ -1,10 +1,10 @@
 //! Custom widgets for the TUI
-//! 
+//!
 //! Contains specialized UI components for the studio
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Paragraph, List, ListItem, Widget, StatefulWidget, ListState, Wrap},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget, Wrap},
 };
 
 #[derive(Clone)]
@@ -17,15 +17,10 @@ impl FileExplorer {
     pub fn new(files: Vec<String>) -> Self {
         let items: Vec<ListItem> = files
             .iter()
-            .map(|f| {
-                ListItem::new(vec![Line::from(f.clone())])
-            })
+            .map(|f| ListItem::new(vec![Line::from(f.clone())]))
             .collect();
 
-        Self {
-            items,
-            selected: 0,
-        }
+        Self { items, selected: 0 }
     }
 
     pub fn next(&mut self) {
@@ -49,7 +44,11 @@ impl Widget for FileExplorer {
 
         let list = List::new(self.items)
             .block(block)
-            .highlight_style(Style::default().bg(Color::LightBlue).add_modifier(Modifier::BOLD))
+            .highlight_style(
+                Style::default()
+                    .bg(Color::LightBlue)
+                    .add_modifier(Modifier::BOLD),
+            )
             .highlight_symbol("> ");
 
         StatefulWidget::render(
@@ -68,15 +67,15 @@ pub struct CodeViewer {
 
 impl CodeViewer {
     pub fn new(content: &str) -> Self {
-        Self { content: content.to_string() }
+        Self {
+            content: content.to_string(),
+        }
     }
 }
 
 impl Widget for CodeViewer {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title("Code Viewer");
+        let block = Block::default().borders(Borders::ALL).title("Code Viewer");
 
         let paragraph = Paragraph::new(self.content)
             .block(block)
@@ -111,9 +110,7 @@ impl AIChatWidget {
 
 impl Widget for AIChatWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title("AI Chat");
+        let block = Block::default().borders(Borders::ALL).title("AI Chat");
 
         let text: Vec<Line> = self
             .messages

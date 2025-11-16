@@ -1,5 +1,5 @@
 //! Template engine for generating multi-language project structures
-//! 
+//!
 //! Contains functionality for creating project templates from various languages
 
 use anyhow::Result;
@@ -47,7 +47,7 @@ impl TemplateEngine {
         let mut engine = Self {
             templates: HashMap::new(),
         };
-        
+
         engine.load_templates();
         engine
     }
@@ -147,7 +147,12 @@ impl TemplateEngine {
             .collect()
     }
 
-    pub fn create_project(&self, template_name: &str, project_path: &str, project_name: &str) -> Result<()> {
+    pub fn create_project(
+        &self,
+        template_name: &str,
+        project_path: &str,
+        project_name: &str,
+    ) -> Result<()> {
         if let Some(template) = self.templates.get(template_name) {
             let project_dir = Path::new(project_path);
             fs::create_dir_all(project_dir)?;
@@ -155,12 +160,12 @@ impl TemplateEngine {
             for file in &template.files {
                 // Replace template variables
                 let content = file.content.replace("{{project_name}}", project_name);
-                
+
                 let file_path = project_dir.join(&file.path);
                 if let Some(parent) = file_path.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                
+
                 fs::write(&file_path, content)?;
 
                 // Set executable permissions if needed (Unix systems)
@@ -179,4 +184,3 @@ impl TemplateEngine {
         }
     }
 }
-

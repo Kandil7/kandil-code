@@ -1,5 +1,5 @@
 //! Cost tracking for AI providers
-//! 
+//!
 //! Tracks API usage and costs for different AI providers
 
 use dashmap::DashMap;
@@ -48,7 +48,13 @@ impl CostTracker {
         }
     }
 
-    pub fn record_usage(&self, provider: &str, model: &str, input_tokens: u32, output_tokens: u32) -> f64 {
+    pub fn record_usage(
+        &self,
+        provider: &str,
+        model: &str,
+        input_tokens: u32,
+        output_tokens: u32,
+    ) -> f64 {
         // Calculate approximate cost based on provider pricing
         let cost = match provider {
             "openai" => self.calculate_openai_cost(model, input_tokens, output_tokens),
@@ -66,10 +72,18 @@ impl CostTracker {
         };
 
         match provider {
-            "openai" => { self.openai.insert(model.to_string(), record); },
-            "claude" => { self.anthropic.insert(model.to_string(), record); },
-            "qwen" => { self.qwen.insert(model.to_string(), record); },
-            "ollama" => { self.ollama.insert(model.to_string(), record); },
+            "openai" => {
+                self.openai.insert(model.to_string(), record);
+            }
+            "claude" => {
+                self.anthropic.insert(model.to_string(), record);
+            }
+            "qwen" => {
+                self.qwen.insert(model.to_string(), record);
+            }
+            "ollama" => {
+                self.ollama.insert(model.to_string(), record);
+            }
             _ => {}
         }
 
@@ -83,15 +97,15 @@ impl CostTracker {
             m if m.contains("gpt-3.5") => 0.001,
             _ => 0.001, // Default to cheaper model
         };
-        
+
         let output_cost_per_m: f64 = match model {
             m if m.contains("gpt-4") => 0.06,
             m if m.contains("gpt-3.5") => 0.002,
             _ => 0.002, // Default to cheaper model
         };
 
-        (input_tokens as f64 / 1_000_000.0) * input_cost_per_m + 
-        (output_tokens as f64 / 1_000_000.0) * output_cost_per_m
+        (input_tokens as f64 / 1_000_000.0) * input_cost_per_m
+            + (output_tokens as f64 / 1_000_000.0) * output_cost_per_m
     }
 
     fn calculate_anthropic_cost(&self, model: &str, input_tokens: u32, output_tokens: u32) -> f64 {
@@ -100,14 +114,14 @@ impl CostTracker {
             m if m.contains("claude-3") => 0.015,
             _ => 0.008, // Default to cheaper model
         };
-        
+
         let output_cost_per_m: f64 = match model {
             m if m.contains("claude-3") => 0.075,
             _ => 0.024, // Default to cheaper model
         };
 
-        (input_tokens as f64 / 1_000_000.0) * input_cost_per_m + 
-        (output_tokens as f64 / 1_000_000.0) * output_cost_per_m
+        (input_tokens as f64 / 1_000_000.0) * input_cost_per_m
+            + (output_tokens as f64 / 1_000_000.0) * output_cost_per_m
     }
 
     fn calculate_qwen_cost(&self, _model: &str, _input_tokens: u32, _output_tokens: u32) -> f64 {
@@ -118,10 +132,26 @@ impl CostTracker {
 
     pub fn get_total_cost(&self, provider: &str) -> f64 {
         match provider {
-            "openai" => self.openai.iter().map(|record| record.value().cost_usd()).sum(),
-            "claude" => self.anthropic.iter().map(|record| record.value().cost_usd()).sum(),
-            "qwen" => self.qwen.iter().map(|record| record.value().cost_usd()).sum(),
-            "ollama" => self.ollama.iter().map(|record| record.value().cost_usd()).sum(),
+            "openai" => self
+                .openai
+                .iter()
+                .map(|record| record.value().cost_usd())
+                .sum(),
+            "claude" => self
+                .anthropic
+                .iter()
+                .map(|record| record.value().cost_usd())
+                .sum(),
+            "qwen" => self
+                .qwen
+                .iter()
+                .map(|record| record.value().cost_usd())
+                .sum(),
+            "ollama" => self
+                .ollama
+                .iter()
+                .map(|record| record.value().cost_usd())
+                .sum(),
             _ => 0.0,
         }
     }
@@ -139,7 +169,7 @@ impl CostTracker {
                     total_cost += record.value().cost_usd();
                 }
                 (total_input, total_output, total_cost)
-            },
+            }
             "claude" => {
                 let mut total_input = 0;
                 let mut total_output = 0;
@@ -150,7 +180,7 @@ impl CostTracker {
                     total_cost += record.value().cost_usd();
                 }
                 (total_input, total_output, total_cost)
-            },
+            }
             "qwen" => {
                 let mut total_input = 0;
                 let mut total_output = 0;
@@ -161,7 +191,7 @@ impl CostTracker {
                     total_cost += record.value().cost_usd();
                 }
                 (total_input, total_output, total_cost)
-            },
+            }
             "ollama" => {
                 let mut total_input = 0;
                 let mut total_output = 0;
@@ -172,7 +202,7 @@ impl CostTracker {
                     total_cost += record.value().cost_usd();
                 }
                 (total_input, total_output, total_cost)
-            },
+            }
             _ => (0, 0, 0.0),
         }
     }
