@@ -1,6 +1,6 @@
 //! Session Checkpointing and Instant Rollback
 //!
-//! Implements session persistence with checkpoints and the ability to 
+//! Implements session persistence with checkpoints and the ability to
 //! instantly rollback to previous states
 
 use anyhow::Result;
@@ -53,13 +53,13 @@ impl SessionManager {
 
     pub async fn create_checkpoint(&self, description: &str) -> Result<String> {
         let checkpoint_id = self.generate_checkpoint_id();
-        
+
         // Create file snapshots
         let files_snapshot = self.create_files_snapshot().await?;
-        
+
         // Get current git commit if available (simplified)
         let git_commit = self.get_current_git_commit().await.ok();
-        
+
         let checkpoint = SessionCheckpoint {
             id: checkpoint_id.clone(),
             timestamp: std::time::SystemTime::now(),
@@ -67,16 +67,19 @@ impl SessionManager {
             files_snapshot,
             git_commit,
         };
-        
+
         // Store checkpoint
         {
             let mut checkpoints = self.checkpoints.write().await;
             checkpoints.insert(checkpoint_id.clone(), checkpoint);
-            
+
             // Maintain maximum checkpoints
             if checkpoints.len() > self.max_checkpoints {
                 // Remove oldest checkpoint
-                let mut sorted: Vec<_> = checkpoints.iter().map(|(k, v)| (k.clone(), v.timestamp)).collect();
+                let mut sorted: Vec<_> = checkpoints
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.timestamp))
+                    .collect();
                 sorted.sort_by(|a, b| a.1.cmp(&b.1));
 
                 if let Some(oldest_key) = sorted.first().map(|(k, _)| k.clone()) {
@@ -84,42 +87,46 @@ impl SessionManager {
                 }
             }
         }
-        
+
         Ok(checkpoint_id)
     }
 
     async fn create_files_snapshot(&self) -> Result<HashMap<String, FileSnapshot>> {
         let mut snapshots = HashMap::new();
-        
+
         // Walk through the working directory and create snapshots for code files
         let mut entries = tokio::fs::read_dir(&self.working_dir).await?;
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            
+
             if path.is_file() && self.is_code_file(&path) {
                 let content = fs::read_to_string(&path).await?;
                 let hash = self.calculate_content_hash(&content);
                 let metadata = fs::metadata(&path).await?;
                 let last_modified = metadata.modified().unwrap_or(std::time::SystemTime::now());
-                
+
                 let snapshot = FileSnapshot {
                     path: path.to_string_lossy().to_string(),
                     content,
                     hash,
                     last_modified,
                 };
-                
+
                 snapshots.insert(path.to_string_lossy().to_string(), snapshot);
             } else if path.is_dir() {
                 // Recursively process subdirectories
                 self.add_directory_snapshots(&path, &mut snapshots).await?;
             }
         }
-        
+
         Ok(snapshots)
     }
 
-    async fn add_directory_snapshots(&self, dir_path: &Path, snapshots: &mut HashMap<String, FileSnapshot>) -> Result<()> {
+    async fn add_directory_snapshots(
+        &self,
+        dir_path: &Path,
+        snapshots: &mut HashMap<String, FileSnapshot>,
+    ) -> Result<()> {
         // Use a work queue to avoid recursion issues
         let mut work_queue = vec![dir_path.to_path_buf()];
 
@@ -153,7 +160,10 @@ impl SessionManager {
     }
 
     fn is_code_file(&self, path: &Path) -> bool {
-        let extensions = ["rs", "js", "ts", "py", "dart", "java", "cpp", "c", "go", "tsx", "jsx", "toml", "json", "yaml", "yml"];
+        let extensions = [
+            "rs", "js", "ts", "py", "dart", "java", "cpp", "c", "go", "tsx", "jsx", "toml", "json",
+            "yaml", "yml",
+        ];
         if let Some(ext) = path.extension() {
             if let Some(ext_str) = ext.to_str() {
                 return extensions.contains(&ext_str);
@@ -165,7 +175,7 @@ impl SessionManager {
     fn calculate_content_hash(&self, content: &str) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         content.hash(&mut hasher);
         format!("{:x}", hasher.finish())
@@ -180,24 +190,24 @@ impl SessionManager {
     pub async fn list_checkpoints(&self) -> Result<Vec<SessionCheckpoint>> {
         let checkpoints = self.checkpoints.read().await;
         let mut result: Vec<_> = checkpoints.values().cloned().collect();
-        
+
         // Sort by timestamp (newest first)
         result.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-        
+
         Ok(result)
     }
 
     pub async fn rollback_to_checkpoint(&self, checkpoint_id: &str) -> Result<RollbackResult> {
         let checkpoints = self.checkpoints.read().await;
-        
+
         if let Some(checkpoint) = checkpoints.get(checkpoint_id) {
             let mut files_restored = Vec::new();
             let mut files_failed = Vec::new();
-            
+
             // Restore each file to its state in the checkpoint
             for (file_path, snapshot) in &checkpoint.files_snapshot {
                 let path = Path::new(file_path);
-                
+
                 // Only restore if the file still exists in current workspace
                 if path.exists() {
                     if let Err(e) = fs::write(path, &snapshot.content).await {
@@ -211,7 +221,7 @@ impl SessionManager {
                     if let Some(parent) = path.parent() {
                         fs::create_dir_all(parent).await?;
                     }
-                    
+
                     if let Err(e) = fs::write(path, &snapshot.content).await {
                         files_failed.push(file_path.clone());
                         eprintln!("Failed to create file {}: {}", file_path, e);
@@ -220,7 +230,7 @@ impl SessionManager {
                     }
                 }
             }
-            
+
             Ok(RollbackResult {
                 success: files_failed.is_empty(),
                 files_restored,
@@ -235,9 +245,9 @@ impl SessionManager {
     pub async fn rollback_to_last_checkpoint(&self) -> Result<RollbackResult> {
         let checkpoints = self.checkpoints.read().await;
         let mut sorted: Vec<_> = checkpoints.values().cloned().collect();
-        
+
         sorted.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-        
+
         if let Some(latest) = sorted.first() {
             self.rollback_to_checkpoint(&latest.id).await
         } else {
@@ -245,16 +255,20 @@ impl SessionManager {
         }
     }
 
-    pub async fn rollback_to_time(&self, target_time: std::time::SystemTime) -> Result<RollbackResult> {
+    pub async fn rollback_to_time(
+        &self,
+        target_time: std::time::SystemTime,
+    ) -> Result<RollbackResult> {
         let checkpoints = self.checkpoints.read().await;
-        let mut candidates: Vec<_> = checkpoints.values()
+        let mut candidates: Vec<_> = checkpoints
+            .values()
             .filter(|cp| cp.timestamp <= target_time)
             .cloned()
             .collect();
-        
+
         // Find the closest checkpoint before or at target time
         candidates.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-        
+
         if let Some(best_match) = candidates.first() {
             self.rollback_to_checkpoint(&best_match.id).await
         } else {
@@ -269,7 +283,10 @@ impl SessionManager {
 
     pub async fn cleanup_old_checkpoints(&self, keep_last_n: usize) -> Result<usize> {
         let mut checkpoints = self.checkpoints.write().await;
-        let mut sorted: Vec<_> = checkpoints.iter().map(|(k, v)| (k.clone(), v.timestamp)).collect();
+        let mut sorted: Vec<_> = checkpoints
+            .iter()
+            .map(|(k, v)| (k.clone(), v.timestamp))
+            .collect();
 
         sorted.sort_by(|a, b| b.1.cmp(&a.1));
 
@@ -283,7 +300,7 @@ impl SessionManager {
                 }
             }
         }
-        
+
         Ok(removed_count)
     }
 
@@ -298,7 +315,7 @@ impl SessionManager {
         if Path::new(file_path).exists() {
             let content = fs::read_to_string(file_path).await?;
             let checkpoints: HashMap<String, SessionCheckpoint> = serde_json::from_str(&content)?;
-            
+
             let mut checkpoints_guard = self.checkpoints.write().await;
             *checkpoints_guard = checkpoints;
         }
@@ -332,19 +349,19 @@ impl SessionCoordinator {
             use uuid::Uuid;
             Uuid::new_v4().to_string()
         });
-        
+
         let metadata = SessionMetadata {
             id: session_id,
             start_time: std::time::SystemTime::now(),
             last_checkpoint: None,
             total_checkpoints: 0,
         };
-        
+
         {
             let mut active_session = self.active_session.write().await;
             *active_session = Some(metadata.clone());
         }
-        
+
         Ok(metadata)
     }
 
@@ -353,12 +370,14 @@ impl SessionCoordinator {
         {
             let active_session = self.active_session.read().await;
             if active_session.is_none() {
-                return Err(anyhow::anyhow!("No active session. Call start_session first."));
+                return Err(anyhow::anyhow!(
+                    "No active session. Call start_session first."
+                ));
             }
         }
-        
+
         let checkpoint_id = self.session_manager.create_checkpoint(description).await?;
-        
+
         // Update session metadata
         {
             let mut active_session = self.active_session.write().await;
@@ -367,7 +386,7 @@ impl SessionCoordinator {
                 metadata.total_checkpoints += 1;
             }
         }
-        
+
         Ok(checkpoint_id)
     }
 
@@ -376,7 +395,7 @@ impl SessionCoordinator {
             let mut active_session = self.active_session.write().await;
             active_session.take()
         };
-        
+
         match session {
             Some(metadata) => Ok(metadata),
             None => Err(anyhow::anyhow!("No active session to end")),
@@ -389,7 +408,9 @@ impl SessionCoordinator {
     }
 
     pub async fn rollback_active_session(&self, checkpoint_id: &str) -> Result<RollbackResult> {
-        self.session_manager.rollback_to_checkpoint(checkpoint_id).await
+        self.session_manager
+            .rollback_to_checkpoint(checkpoint_id)
+            .await
     }
 }
 
@@ -402,15 +423,15 @@ mod tests {
     async fn test_session_manager_creation() {
         let temp_dir = std::env::temp_dir();
         let test_dir = temp_dir.join("kandil_test_session");
-        
+
         // Create test directory
         fs::create_dir_all(&test_dir).await.unwrap();
-        
+
         let manager = SessionManager::new(&test_dir.to_string_lossy());
-        
+
         // Clean up
         let _ = fs::remove_dir_all(&test_dir).await;
-        
+
         assert!(true); // Just testing creation
     }
 
@@ -418,24 +439,24 @@ mod tests {
     async fn test_session_coordinator() {
         let temp_dir = std::env::temp_dir();
         let test_dir = temp_dir.join("kandil_test_coord");
-        
+
         // Create test directory
         fs::create_dir_all(&test_dir).await.unwrap();
-        
+
         let coordinator = SessionCoordinator::new(&test_dir.to_string_lossy());
-        
+
         // Start a session
         let session = coordinator.start_session(None).await.unwrap();
         assert!(!session.id.is_empty());
-        
+
         // Check if session is active
         let active = coordinator.get_active_session().await;
         assert!(active.is_some());
-        
+
         // End the session
         let ended = coordinator.end_session().await;
         assert!(ended.is_ok());
-        
+
         // Clean up
         let _ = fs::remove_dir_all(&test_dir).await;
     }

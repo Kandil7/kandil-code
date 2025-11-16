@@ -4,10 +4,10 @@
 //! and embedding-based compression for historical context
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use tree_sitter::{Parser, Query};
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextWindow {
@@ -77,9 +77,22 @@ impl ContextManager {
     fn extract_symbols_from_task(&self, task: &str) -> Vec<String> {
         // Simple keyword extraction - in practice, we'd use NLP
         let keywords = [
-            "auth", "login", "user", "api", "database", "config", 
-            "test", "bug", "fix", "feature", "service", "model", 
-            "view", "controller", "route", "middleware"
+            "auth",
+            "login",
+            "user",
+            "api",
+            "database",
+            "config",
+            "test",
+            "bug",
+            "fix",
+            "feature",
+            "service",
+            "model",
+            "view",
+            "controller",
+            "route",
+            "middleware",
         ];
 
         let mut symbols = Vec::new();
@@ -92,7 +105,11 @@ impl ContextManager {
         symbols
     }
 
-    fn find_relevant_files(&self, workspace_path: &str, symbols: &[String]) -> Result<Vec<ContextFile>> {
+    fn find_relevant_files(
+        &self,
+        workspace_path: &str,
+        symbols: &[String],
+    ) -> Result<Vec<ContextFile>> {
         let mut relevant_files = Vec::new();
 
         // Walk through the workspace to find relevant files
@@ -103,10 +120,10 @@ impl ContextManager {
             if path.is_file() && self.is_code_file(&path) {
                 let content = std::fs::read_to_string(&path)?;
                 let file_symbols = self.extract_symbols_from_code(&content)?;
-                
+
                 // Calculate relevance based on symbol overlap
                 let relevance = self.calculate_relevance(&file_symbols, symbols);
-                
+
                 if relevance > 0.0 {
                     let dependencies = self.extract_dependencies(&content)?;
                     relevant_files.push(ContextFile {
@@ -134,7 +151,9 @@ impl ContextManager {
     }
 
     fn is_code_file(&self, path: &Path) -> bool {
-        let extensions = ["rs", "js", "ts", "py", "dart", "java", "cpp", "c", "go", "tsx", "jsx"];
+        let extensions = [
+            "rs", "js", "ts", "py", "dart", "java", "cpp", "c", "go", "tsx", "jsx",
+        ];
         if let Some(ext) = path.extension() {
             if let Some(ext_str) = ext.to_str() {
                 return extensions.contains(&ext_str);
@@ -146,14 +165,14 @@ impl ContextManager {
     fn extract_symbols_from_code(&self, code: &str) -> Result<Vec<String>> {
         // Create a parser on-demand to avoid borrowing issues
         let mut parser = Parser::new();
-        parser.set_language(self.language).map_err(|e| {
-            anyhow::anyhow!("Failed to set parser language: {}", e)
-        })?;
+        parser
+            .set_language(self.language)
+            .map_err(|e| anyhow::anyhow!("Failed to set parser language: {}", e))?;
 
         // Use tree-sitter to parse the code and extract symbols
-        let tree = parser.parse(code, None).ok_or_else(|| {
-            anyhow::anyhow!("Failed to parse code")
-        })?;
+        let tree = parser
+            .parse(code, None)
+            .ok_or_else(|| anyhow::anyhow!("Failed to parse code"))?;
 
         let mut symbols = Vec::new();
         self.traverse_tree_for_symbols(&tree.root_node(), code, &mut symbols);
@@ -165,7 +184,12 @@ impl ContextManager {
         Ok(symbols)
     }
 
-    fn traverse_tree_for_symbols(&self, node: &tree_sitter::Node, source: &str, symbols: &mut Vec<String>) {
+    fn traverse_tree_for_symbols(
+        &self,
+        node: &tree_sitter::Node,
+        source: &str,
+        symbols: &mut Vec<String>,
+    ) {
         // This is a simplified traversal - in practice, we'd have more specific queries
         // for different language constructs (functions, classes, variables, etc.)
         if node.kind() == "function" || node.kind() == "function_item" {
@@ -197,7 +221,7 @@ impl ContextManager {
                 }
             }
         }
-        
+
         // Normalize by the number of symbols for fair comparison
         if !file_symbols.is_empty() {
             relevance / file_symbols.len() as f32
@@ -210,7 +234,7 @@ impl ContextManager {
         // Simple regex-based dependency extraction
         // In practice, we'd use tree-sitter queries for different languages
         let mut dependencies = Vec::new();
-        
+
         // Look for import/require statements
         let re = regex::Regex::new(r"(import|from|require|use)\s+([a-zA-Z0-9_\.]+)")?;
         for cap in re.captures_iter(code) {
@@ -262,7 +286,11 @@ impl MemoryCompressor {
             content.to_string()
         } else {
             // Take the first and last sentences as a summary
-            format!("{}... [truncated] ...{}", sentences[0], sentences[sentences.len()-1])
+            format!(
+                "{}... [truncated] ...{}",
+                sentences[0],
+                sentences[sentences.len() - 1]
+            )
         }
     }
 }
@@ -285,7 +313,7 @@ mod tests {
         let manager = ContextManager::new().unwrap();
         let file_symbols = vec!["login".to_string(), "auth".to_string(), "user".to_string()];
         let task_symbols = vec!["auth".to_string(), "login".to_string()];
-        
+
         let relevance = manager.calculate_relevance(&file_symbols, &task_symbols);
         assert!(relevance > 0.0);
     }

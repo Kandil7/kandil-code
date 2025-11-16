@@ -6,16 +6,16 @@ use tiktoken_rs::{num_tokens_from_messages, ChatCompletionRequestMessage};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskComplexity {
-    Simple,   // <200 tokens, autocomplete, syntax fix
-    Medium,   // 200-1000 tokens, function generation
-    Complex,  // >1000 tokens, architecture, debugging
+    Simple,  // <200 tokens, autocomplete, syntax fix
+    Medium,  // 200-1000 tokens, function generation
+    Complex, // >1000 tokens, architecture, debugging
 }
 
 impl TaskComplexity {
     pub fn from_prompt(prompt: &str) -> Self {
         // First, use token counting which is more accurate than character count
         let token_count = count_tokens(prompt);
-        
+
         match token_count {
             0..=200 => TaskComplexity::Simple,
             201..=1000 => TaskComplexity::Medium,
@@ -26,47 +26,57 @@ impl TaskComplexity {
     /// Analyze the prompt content more deeply to determine complexity
     pub fn from_content_analysis(prompt: &str) -> Self {
         let mut complexity_score = 0.0;
-        
+
         // Keywords that indicate complexity
         let complex_keywords = [
-            "architecture", "design", "system", "refactor", "debug", "performance", 
-            "optimization", "security", "scaling", "distributed", "patterns", "algorithm"
+            "architecture",
+            "design",
+            "system",
+            "refactor",
+            "debug",
+            "performance",
+            "optimization",
+            "security",
+            "scaling",
+            "distributed",
+            "patterns",
+            "algorithm",
         ];
-        
+
         let simple_keywords = [
-            "what is", "how to", "define", "explain", "syntax", "fix", "bug"
+            "what is", "how to", "define", "explain", "syntax", "fix", "bug",
         ];
-        
+
         let prompt_lower = prompt.to_lowercase();
-        
+
         // Score based on complex keywords
         for keyword in &complex_keywords {
             if prompt_lower.contains(keyword) {
                 complexity_score += 2.0;
             }
         }
-        
+
         // Score based on simple keywords
         for keyword in &simple_keywords {
             if prompt_lower.contains(keyword) {
                 complexity_score -= 1.0;
             }
         }
-        
+
         // Length factor (longer prompts tend to be more complex)
         let length_factor = (prompt.len() as f64 / 1000.0).min(5.0);
         complexity_score += length_factor;
-        
+
         // Analyze code elements
         if prompt.contains("fn ") || prompt.contains("function") || prompt.contains("class") {
             complexity_score += 0.5; // Programming tasks are usually medium+
         }
-        
+
         if prompt.contains('{') && prompt.contains('}') {
             // Code block detected, likely to be a coding task
             complexity_score += 0.3;
         }
-        
+
         // Determine complexity based on score
         match complexity_score {
             score if score < 1.0 => TaskComplexity::Simple,
@@ -79,7 +89,7 @@ impl TaskComplexity {
     pub fn analyze(prompt: &str) -> Self {
         let token_based = Self::from_prompt(prompt);
         let content_based = Self::from_content_analysis(prompt);
-        
+
         // Use the higher complexity when they disagree
         match (token_based, content_based) {
             (TaskComplexity::Complex, _) | (_, TaskComplexity::Complex) => TaskComplexity::Complex,
@@ -91,18 +101,21 @@ impl TaskComplexity {
 
 fn count_tokens(text: &str) -> usize {
     // Use tiktoken_rs to count tokens accurately
-    // This is a simplified implementation - in a real system, 
+    // This is a simplified implementation - in a real system,
     // we'd want to choose the appropriate encoding based on the model
-    match num_tokens_from_messages("gpt-3.5-turbo", &[ChatCompletionRequestMessage {
-        role: "user".to_string(),
-        content: Some(text.to_string()),
-        name: None,
-        function_call: None,
-    }]) {
+    match num_tokens_from_messages(
+        "gpt-3.5-turbo",
+        &[ChatCompletionRequestMessage {
+            role: "user".to_string(),
+            content: Some(text.to_string()),
+            name: None,
+            function_call: None,
+        }],
+    ) {
         Ok(count) => count,
         Err(_) => {
             // Fallback to a rough character-based estimate if token counting fails
-            text.chars().count() / 4  // Rough estimate: 1 token ~ 4 characters
+            text.chars().count() / 4 // Rough estimate: 1 token ~ 4 characters
         }
     }
 }

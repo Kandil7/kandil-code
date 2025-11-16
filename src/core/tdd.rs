@@ -1,15 +1,15 @@
 //! Automatic TDD Agent
 //!
-//! Implements Test-Driven Development automation where tests are generated 
-//! first, code is implemented to pass tests, and mutation testing ensures 
+//! Implements Test-Driven Development automation where tests are generated
+//! first, code is implemented to pass tests, and mutation testing ensures
 //! test quality
 
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::core::agents::base::{Agent, AgentState};
 use crate::core::adapters::ai::AIProviderTrait;
+use crate::core::agents::base::{Agent, AgentState};
 
 #[derive(Debug)]
 pub struct CodeChanges {
@@ -54,11 +54,18 @@ impl TestDrivenAgent {
         let mut attempt = 0;
         let max_attempts = 5; // Prevent infinite loops
 
-        while !self.run_tests_with_implementation(&tests, &implementation).await?.all_passed() {
+        while !self
+            .run_tests_with_implementation(&tests, &implementation)
+            .await?
+            .all_passed()
+        {
             if attempt >= max_attempts {
-                return Err(anyhow::anyhow!("Could not implement code that passes all tests after {} attempts", max_attempts));
+                return Err(anyhow::anyhow!(
+                    "Could not implement code that passes all tests after {} attempts",
+                    max_attempts
+                ));
             }
-            
+
             implementation = self.refine_implementation(implementation, &tests).await?;
             attempt += 1;
         }
@@ -66,7 +73,10 @@ impl TestDrivenAgent {
         // Step 4: Run mutation testing to ensure test quality
         let mutation_score = self.mutation_tester.run(&tests, &implementation).await?;
         if mutation_score < 0.9 {
-            return Err(anyhow::anyhow!("Tests are insufficiently rigorous, mutation score: {:.2}", mutation_score));
+            return Err(anyhow::anyhow!(
+                "Tests are insufficiently rigorous, mutation score: {:.2}",
+                mutation_score
+            ));
         }
 
         Ok(CodeChanges {
@@ -134,14 +144,18 @@ impl TestDrivenAgent {
         })
     }
 
-    async fn run_tests_with_implementation(&self, tests: &str, implementation: &str) -> Result<TestResults> {
+    async fn run_tests_with_implementation(
+        &self,
+        tests: &str,
+        implementation: &str,
+    ) -> Result<TestResults> {
         // In a real implementation, this would run tests against the implementation
         // For now, we'll simulate based on some logic
-        
+
         // Simple heuristic: if implementation contains keywords that match test expectations
-        let passes = tests.to_lowercase().contains("assert") && 
-                    implementation.to_lowercase().contains("return");
-        
+        let passes = tests.to_lowercase().contains("assert")
+            && implementation.to_lowercase().contains("return");
+
         if passes {
             Ok(TestResults {
                 passed: 5,
@@ -228,7 +242,10 @@ impl Agent for ImplementationAgent {
 
     async fn observe(&self, result: &str) -> Result<String> {
         // Observe the generated implementation
-        Ok(format!("Generated implementation: {} characters", result.len()))
+        Ok(format!(
+            "Generated implementation: {} characters",
+            result.len()
+        ))
     }
 }
 
@@ -241,28 +258,28 @@ impl MutantTester {
     }
 
     pub async fn run(&self, tests: &str, implementation: &str) -> Result<f64> {
-        // This would run mutation testing by introducing small changes (mutations) 
+        // This would run mutation testing by introducing small changes (mutations)
         // to the implementation and checking if tests catch them
-        
+
         // In a real implementation, we would:
         // 1. Create mutants by making small changes to the implementation
         // 2. Run tests against each mutant
         // 3. Count how many mutants were "killed" by tests
         // 4. Return the mutation score (killed_mutants / total_mutants)
-        
+
         // For simulation, we'll return a score based on simple heuristics
         let test_complexity = tests.matches("assert").count();
         let impl_complexity = implementation.matches("fn").count();
-        
-        // Higher complexity in tests with appropriate implementation complexity 
+
+        // Higher complexity in tests with appropriate implementation complexity
         // should give a better mutation score
         let score = if test_complexity > 0 && impl_complexity > 0 {
-            std::cmp::min(test_complexity, impl_complexity) as f64 / 
-            std::cmp::max(test_complexity, impl_complexity) as f64
+            std::cmp::min(test_complexity, impl_complexity) as f64
+                / std::cmp::max(test_complexity, impl_complexity) as f64
         } else {
             0.5 // Default score if no clear pattern
         };
-        
+
         // Ensure score is between 0 and 1
         Ok(score.clamp(0.0, 1.0))
     }
@@ -281,7 +298,11 @@ mod tests {
             Ok("Mocked response".to_string())
         }
 
-        async fn chat_with_context(&self, _message: &str, _workspace_path: Option<&str>) -> Result<String> {
+        async fn chat_with_context(
+            &self,
+            _message: &str,
+            _workspace_path: Option<&str>,
+        ) -> Result<String> {
             Ok("Mocked response with context".to_string())
         }
     }
@@ -300,16 +321,16 @@ mod tests {
             failed: 0,
             skipped: 0,
         };
-        
+
         assert!(results.all_passed());
         assert!(!results.all_failed());
-        
+
         let results = TestResults {
             passed: 0,
             failed: 5,
             skipped: 0,
         };
-        
+
         assert!(!results.all_passed());
         assert!(results.all_failed());
     }

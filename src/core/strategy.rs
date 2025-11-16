@@ -49,7 +49,9 @@ impl ExecutionMode {
 impl ExecutionStrategy {
     pub async fn create(config: &Config) -> Result<Self, LocalModelError> {
         // Factory function to create an AI provider
-        let create_provider = |model_name: &str, model_config: &ModelConfig| -> Result<Arc<dyn AIProvider>, LocalModelError> {
+        let create_provider = |model_name: &str,
+                               model_config: &ModelConfig|
+         -> Result<Arc<dyn AIProvider>, LocalModelError> {
             // For now, we'll return a placeholder that implements AIProvider
             // In a full implementation, this would load the actual model
             Ok(Arc::new(create_placeholder_model(model_name)?))
@@ -58,9 +60,7 @@ impl ExecutionStrategy {
         match &config.strategy.mode {
             ExecutionMode::Local => {
                 let model = create_provider(&config.model.name, &config.model)?;
-                Ok(Self::LocalOnly {
-                    model
-                })
+                Ok(Self::LocalOnly { model })
             }
 
             ExecutionMode::Hybrid => {
@@ -80,7 +80,11 @@ impl ExecutionStrategy {
 
             ExecutionMode::Dynamic => {
                 // Load two models: fast (smaller) and quality (larger)
-                let fast_model_name = config.strategy.fast_model.clone().unwrap_or_else(|| get_smaller_model(&config.model.name));
+                let fast_model_name = config
+                    .strategy
+                    .fast_model
+                    .clone()
+                    .unwrap_or_else(|| get_smaller_model(&config.model.name));
                 let quality_model_name = config.model.name.clone();
 
                 let fast_adapter = create_provider(&fast_model_name, &config.model)?;
@@ -104,7 +108,7 @@ impl ExecutionStrategy {
                 // Placeholder cloud adapter
                 let cloud = create_placeholder_cloud_adapter();
                 Ok(Self::LocalOnly {
-                    model: Arc::new(cloud)
+                    model: Arc::new(cloud),
                 })
             }
         }
@@ -112,31 +116,40 @@ impl ExecutionStrategy {
 
     pub async fn complete(&self, prompt: &str) -> Result<String, LocalModelError> {
         match self {
-            ExecutionStrategy::LocalOnly { model } => {
-                model.complete(prompt).await
-            }
+            ExecutionStrategy::LocalOnly { model } => model.complete(prompt).await,
 
-            ExecutionStrategy::Hybrid { local, cloud, threshold } => {
-                match timeout(threshold.clone(), local.complete(prompt)).await {
-                    Ok(Ok(response)) => Ok(response),
-                    Ok(Err(e)) => {
-                        tracing::warn!("Local model failed: {}, falling back to cloud", e);
-                        cloud.complete(prompt).await
-                    }
-                    Err(_) => {
-                        tracing::warn!("Local model timed out, falling back to cloud");
-                        cloud.complete(prompt).await
-                    }
+            ExecutionStrategy::Hybrid {
+                local,
+                cloud,
+                threshold,
+            } => match timeout(threshold.clone(), local.complete(prompt)).await {
+                Ok(Ok(response)) => Ok(response),
+                Ok(Err(e)) => {
+                    tracing::warn!("Local model failed: {}, falling back to cloud", e);
+                    cloud.complete(prompt).await
                 }
-            }
+                Err(_) => {
+                    tracing::warn!("Local model timed out, falling back to cloud");
+                    cloud.complete(prompt).await
+                }
+            },
 
-            ExecutionStrategy::Dynamic { fast_model, quality_model, cloud } => {
+            ExecutionStrategy::Dynamic {
+                fast_model,
+                quality_model,
+                cloud,
+            } => {
                 // Analyze the complexity of the task
-                let complexity_analysis = crate::core::task_complexity::TaskComplexity::analyze(prompt);
-                
+                let complexity_analysis =
+                    crate::core::task_complexity::TaskComplexity::analyze(prompt);
+
                 match complexity_analysis {
-                    crate::core::task_complexity::TaskComplexity::Simple => fast_model.complete(prompt).await,
-                    crate::core::task_complexity::TaskComplexity::Medium => quality_model.complete(prompt).await,
+                    crate::core::task_complexity::TaskComplexity::Simple => {
+                        fast_model.complete(prompt).await
+                    }
+                    crate::core::task_complexity::TaskComplexity::Medium => {
+                        quality_model.complete(prompt).await
+                    }
                     crate::core::task_complexity::TaskComplexity::Complex => {
                         // Try quality model first, then cloud if available
                         match quality_model.complete(prompt).await {

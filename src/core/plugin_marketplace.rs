@@ -1,6 +1,6 @@
 //! Plugin Marketplace Framework
 //!
-//! Implements a verified plugin marketplace with security audits 
+//! Implements a verified plugin marketplace with security audits
 //! and revenue sharing for plugin developers
 
 use anyhow::Result;
@@ -11,10 +11,10 @@ use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PluginTrustLevel {
-    Unverified,    // No security audit performed
-    Verified,      // Passed security audit
-    Official,      // Official Kandil plugin
-    Community,     // Community submitted and reviewed
+    Unverified, // No security audit performed
+    Verified,   // Passed security audit
+    Official,   // Official Kandil plugin
+    Community,  // Community submitted and reviewed
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,9 +29,9 @@ pub struct PluginManifest {
     pub entry_point: String,    // Main executable
     pub dependencies: Vec<String>,
     pub trust_level: PluginTrustLevel,
-    pub revenue_share: u8,      // Percentage for plugin developer (0-100)
+    pub revenue_share: u8, // Percentage for plugin developer (0-100)
     pub download_count: u64,
-    pub rating: f32,            // Average rating (0.0-5.0)
+    pub rating: f32, // Average rating (0.0-5.0)
     pub security_audit_date: Option<std::time::SystemTime>,
 }
 
@@ -109,7 +109,8 @@ impl PluginMarketplace {
             enabled: true,
         };
 
-        self.plugins.insert(metadata.manifest.name.clone(), metadata);
+        self.plugins
+            .insert(metadata.manifest.name.clone(), metadata);
 
         Ok(format!("Plugin '{}' installed successfully", source))
     }
@@ -119,10 +120,10 @@ impl PluginMarketplace {
         // For now, we'll simulate by creating a temp file
         let temp_dir = std::env::temp_dir();
         let plugin_path = temp_dir.join("temp_plugin.kandil");
-        
+
         // Simulate download
         fs::write(&plugin_path, b"simulated_plugin_content").await?;
-        
+
         Ok(plugin_path.to_string_lossy().to_string())
     }
 
@@ -130,18 +131,20 @@ impl PluginMarketplace {
         // In a real implementation, this would query the registry
         // For now, throw an error to indicate this needs implementation
         println!("Would download plugin '{}' from registry", plugin_name);
-        Err(anyhow::anyhow!("Registry download not implemented in simulation"))
+        Err(anyhow::anyhow!(
+            "Registry download not implemented in simulation"
+        ))
     }
 
     async fn scan_plugin_security(&self, plugin_path: &str) -> Result<()> {
         // Perform security scanning of the plugin
         // This would involve code analysis, signature verification, etc.
         println!("Scanning plugin for security: {}", plugin_path);
-        
+
         // Simulate security scan
         // In a real implementation, this would analyze the plugin code for malicious patterns
         // Check for dangerous system calls, network access, file system modifications, etc.
-        
+
         // For now, just return Ok
         Ok(())
     }
@@ -149,13 +152,13 @@ impl PluginMarketplace {
     async fn validate_plugin(&self, plugin_path: &str) -> Result<PluginManifest> {
         // Validate plugin format and extract manifest
         // For now, we'll create a dummy manifest
-        
+
         // In a real implementation, this would:
         // 1. Extract the plugin manifest from the package
         // 2. Validate the manifest structure
         // 3. Check compatibility with current Kandil version
         // 4. Verify digital signatures if available
-        
+
         Ok(PluginManifest {
             name: "example-plugin".to_string(),
             version: "1.0.0".to_string(),
@@ -174,23 +177,28 @@ impl PluginMarketplace {
         })
     }
 
-    async fn install_to_user_dir(&self, manifest: &PluginManifest, source_path: &str) -> Result<String> {
+    async fn install_to_user_dir(
+        &self,
+        manifest: &PluginManifest,
+        source_path: &str,
+    ) -> Result<String> {
         // Install plugin to user's plugin directory
         let user_plugins_dir = self.get_user_plugins_dir()?;
         let plugin_dir = user_plugins_dir.join(&manifest.name);
-        
+
         fs::create_dir_all(&plugin_dir).await?;
-        
+
         // Copy plugin files to user directory
         let dest_path = plugin_dir.join(&manifest.entry_point);
         fs::copy(source_path, &dest_path).await?;
-        
+
         Ok(plugin_dir.to_string_lossy().to_string())
     }
 
     fn get_user_plugins_dir(&self) -> Result<std::path::PathBuf> {
         // Get the user's Kandil plugins directory
-        let home_dir = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not get home directory"))?;
+        let home_dir =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not get home directory"))?;
         Ok(home_dir.join(".kandil").join("plugins"))
     }
 
@@ -204,10 +212,10 @@ impl PluginMarketplace {
             if Path::new(&metadata.install_path).exists() {
                 fs::remove_dir_all(&metadata.install_path).await?;
             }
-            
+
             // Remove from internal registry
             self.plugins.remove(plugin_name);
-            
+
             Ok(())
         } else {
             Err(anyhow::anyhow!("Plugin '{}' not found", plugin_name))
@@ -271,7 +279,7 @@ impl PluginMarketplace {
             // In a real implementation, this would execute the plugin
             // with proper sandboxing and security measures
             println!("Running plugin: {} with args: {:?}", plugin_name, args);
-            
+
             // For simulation, return a dummy result
             Ok(format!("Plugin '{}' executed successfully", plugin_name))
         } else {
@@ -299,7 +307,7 @@ impl PluginSecurityAuditor {
         // Perform comprehensive security audit of plugin
         // This would analyze the plugin code for security vulnerabilities
         println!("Auditing plugin security: {}", plugin_path);
-        
+
         // For simulation, return a basic report
         Ok(SecurityAuditReport {
             plugin_path: plugin_path.to_string(),
