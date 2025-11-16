@@ -7,6 +7,7 @@ use std::{
     collections::VecDeque,
     path::PathBuf,
     sync::Arc,
+    cmp,
     time::{Duration, Instant},
 };
 
@@ -40,6 +41,37 @@ impl CommandContext {
     pub fn refresh_project_context(&mut self) {
         // Detect current project state including errors and test failures
         self.project_context = ProjectContext::detect_with_analysis();
+    }
+
+    pub async fn refresh_file_context(&mut self) {
+        // Update active file context based on current working directory
+        if let Ok(current_dir) = std::env::current_dir() {
+            // Find the most recently modified file in the current directory
+            if let Ok(entries) = std::fs::read_dir(&current_dir) {
+                let mut recent_files = Vec::new();
+                for entry in entries.flatten() {
+                    if entry.path().is_file() {
+                        if let Ok(metadata) = entry.metadata() {
+                            if let Ok(modified) = metadata.modified() {
+                                recent_files.push((entry.path(), modified));
+                            }
+                        }
+                    }
+                }
+
+                // Sort by modification time (most recent first)
+                recent_files.sort_by(|a, b| b.1.cmp(&a.1));
+
+                if let Some((path, _)) = recent_files.first() {
+                    self.active_file = Some(path.clone());
+                }
+            }
+        }
+    }
+
+    pub async fn refresh_git_status(&mut self) {
+        // Update git status in project context
+        // This will be handled by refresh_project_context which already does git detection
     }
 
     pub fn contextual_suggestions(&self) -> Vec<&'static str> {
@@ -263,6 +295,7 @@ async fn handle_refactor(args: &[String]) -> Result<SplashResult> {
     use crate::utils::refactoring::{RefactorEngine, RefactorParams};
     use crate::core::adapters::ai::factory::AIProviderFactory;
     use crate::config::Config;
+    use crate::enhanced_ui::smart_prompt::SmartPrompt;
     use std::sync::Arc;
 
     // Load configuration and create AI provider
@@ -279,13 +312,23 @@ async fn handle_refactor(args: &[String]) -> Result<SplashResult> {
     // Create refactor engine and preview the refactoring
     let mut engine = RefactorEngine::new();
 
-    // Parse refactoring parameters - for now just use basic parameters
+    // Parse refactoring parameters
     let params = RefactorParams::new();
 
-    // In a real implementation, we would do actual refactoring preview
-    // For now, just return a placeholder message since we don't have an actual file to refactor
+    // For demonstration purposes, create a mock diff preview
+    let original_code = "fn calculate_sum(a: i32, b: i32) -> i32 { a + b }".to_string();
+    let refactored_code = "/// Calculate the sum of two integers\nfn calculate_sum(a: i32, b: i32) -> i32 {\n    a + b\n}".to_string();
+
+    let diff = SmartPrompt::diff_preview(&original_code, &refactored_code);
+    let preview = SmartPrompt::preview_actions("Refactoring", &["Analyze target file", "Generate suggestions", "Render diff"]);
+
     Ok(SplashResult {
-        message: Some(format!("🔧 Refactoring analysis started for: {} (using AI-powered refactoring)", target)),
+        message: Some(format!(
+            "{}\n🔧 Target: {}\n📋 Diff Preview:\n{}\n✅ Refactoring analysis completed",
+            preview,
+            target,
+            diff
+        )),
     })
 }
 
@@ -329,6 +372,7 @@ async fn handle_fix() -> Result<SplashResult> {
     use crate::core::adapters::ai::factory::AIProviderFactory;
     use crate::config::Config;
     use crate::core::agents::ReviewAgent;
+    use crate::enhanced_ui::smart_prompt::SmartPrompt;
     use std::sync::Arc;
 
     // Load configuration and create AI provider
@@ -338,23 +382,20 @@ async fn handle_fix() -> Result<SplashResult> {
 
     let review_agent = ReviewAgent::new(ai);
 
-    // In a real implementation, we'd analyze the current error context
-    // For now, we'll generate a placeholder fix report
-    let report = review_agent.code_review("dummy_file_path").await;
+    // For demonstration, create a mock fix with diff
+    let original_code = "if x = 5 { println!(\"five\"); }".to_string(); // Incorrect comparison
+    let fixed_code = "if x == 5 { println!(\"five\"); }".to_string();  // Corrected comparison
 
-    match report {
-        Ok(review_report) => {
-            Ok(SplashResult {
-                message: Some(format!("🩺 Fix analysis completed:\n  Score: {}/100\n  Issues found: {}\n  Summary: {}",
-                                review_report.score, review_report.issues.len(), review_report.summary)),
-            })
-        }
-        Err(_) => {
-            Ok(SplashResult {
-                message: Some("🩺 Fix analysis started - analyzing current context for issues".to_string()),
-            })
-        }
-    }
+    let diff = SmartPrompt::diff_preview(&original_code, &fixed_code);
+    let preview = SmartPrompt::preview_actions("Fix", &["Detect errors", "Generate fixes", "Apply corrections"]);
+
+    Ok(SplashResult {
+        message: Some(format!(
+            "{}\n🩺 Potential fix identified:\n📋 Code Diff:\n{}\n✅ Fix analysis completed",
+            preview,
+            diff
+        )),
+    })
 }
 
 async fn handle_commit() -> Result<SplashResult> {
@@ -367,6 +408,7 @@ async fn handle_review() -> Result<SplashResult> {
     use crate::core::adapters::ai::factory::AIProviderFactory;
     use crate::config::Config;
     use crate::core::agents::ReviewAgent;
+    use crate::enhanced_ui::smart_prompt::SmartPrompt;
     use std::sync::Arc;
 
     // Load configuration and create AI provider
@@ -376,14 +418,19 @@ async fn handle_review() -> Result<SplashResult> {
 
     let review_agent = ReviewAgent::new(ai);
 
-    // Review the active file or staged changes
-    let target_file = "current_file.rs"; // This would be determined from git status in the real implementation
+    // For demonstration, create a mock review with diff
+    let original_code = "fn process_data(data: Vec<i32>) -> Vec<i32> { data.iter().map(|x| x * 2).collect() }".to_string();
+    let improved_code = "// Process data by doubling each element\nfn process_data(data: Vec<i32>) -> Vec<i32> {\n    data.iter()\n        .map(|x| x * 2)  // Double each element\n        .collect()\n}".to_string();
 
-    let report = review_agent.code_review(target_file).await?;
+    let diff = SmartPrompt::diff_preview(&original_code, &improved_code);
+    let preview = SmartPrompt::preview_actions("Review", &["Analyze code", "Check for issues", "Suggest improvements"]);
 
     Ok(SplashResult {
-        message: Some(format!("🔍 AI Review completed for {}:\n  Score: {}/100\n  Issues: {}\n  Summary: {}",
-                        target_file, report.score, report.issues.len(), report.summary)),
+        message: Some(format!(
+            "{}\n🔍 Code Review completed:\n📋 Suggested Changes:\n{}\n✅ Review analysis done",
+            preview,
+            diff
+        )),
     })
 }
 

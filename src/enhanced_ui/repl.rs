@@ -5,7 +5,7 @@ use crate::{
         input::{InputMethod, UniversalInput},
         persona::PersonaProfile,
         predictive::PredictiveExecutor,
-        smart_prompt::SmartPrompt,
+        smart_prompt::{SmartPrompt, PipelineStage},
         splash::{self, CommandContext, SplashResult},
         terminal::KandilTerminal,
         thought::{ThoughtFragment, ThoughtStreamer},
@@ -13,7 +13,8 @@ use crate::{
     mobile::MobileBridge,
 };
 use anyhow::{anyhow, Result};
-use std::{collections::VecDeque, env, sync::Arc, time::Duration};
+use std::{collections::VecDeque, env, sync::Arc, time::Duration, cmp};
+use futures_util;
 
 #[derive(Default)]
 pub struct KandilPrompt {
@@ -172,8 +173,46 @@ fn parse_command(input: &str) -> Command {
     }
 }
 
+async fn parse_command_enhanced(input: &str, context: &CommandContext) -> Command {
+    // First try the normal parsing
+    let basic_command = parse_single_command(input);
+
+    // Apply context-aware enhancements
+    match &basic_command {
+        Command::Splash { trigger, args } => {
+            // Enhance splash command with context
+            let enhanced_args = enhance_args_with_context(trigger, args, context).await;
+            Command::Splash {
+                trigger: trigger.clone(),
+                args: enhanced_args
+            }
+        },
+        Command::Shell(cmd) => {
+            // Potentially enhance shell command with context
+            Command::Shell(cmd.clone())
+        },
+        Command::NaturalLanguage(query) => {
+            // Potentially enhance natural language with context
+            Command::NaturalLanguage(query.clone())
+        },
+        Command::Pipeline(commands) => {
+            // Enhance pipeline commands recursively
+            let enhanced_commands: Vec<Command> = futures_util::future::join_all(
+                commands.iter().map(|cmd| enhance_command_with_context(cmd, context))
+            ).await;
+            Command::Pipeline(enhanced_commands)
+        }
+    }
+}
+
 fn parse_single_command(input: &str) -> Command {
-    if input.starts_with('/') {
+    if input.contains('|') {
+        let stages = input
+            .split('|')
+            .map(|segment| parse_single_command(segment.trim()))
+            .collect();
+        Command::Pipeline(stages)
+    } else if input.starts_with('/') {
         let mut parts = input.split_whitespace();
         let trigger = parts.next().unwrap_or("").to_string();
         let args = parts.map(|p| p.to_string()).collect();
@@ -182,6 +221,45 @@ fn parse_single_command(input: &str) -> Command {
         Command::NaturalLanguage(input.to_string())
     } else {
         Command::Shell(input.to_string())
+    }
+}
+
+async fn enhance_args_with_context(trigger: &str, args: &[String], context: &CommandContext) -> Vec<String> {
+    // Add context-aware enhancements to arguments
+    let mut enhanced_args = args.to_vec();
+
+    // For /test command, automatically target the active file if no target is specified
+    if trigger == "/test" && enhanced_args.is_empty() {
+        if let Some(active_file) = &context.active_file {
+            enhanced_args.push(active_file.to_string_lossy().to_string());
+        }
+    }
+
+    // For /fix command, add context about current errors if any
+    if trigger == "/fix" && context.project_context.errors > 0 {
+        // In a real implementation, this could add specific file targets based on detected errors
+    }
+
+    // For /review command, automatically target the active file if no target is specified
+    if trigger == "/review" && enhanced_args.is_empty() {
+        if let Some(active_file) = &context.active_file {
+            enhanced_args.push(active_file.to_string_lossy().to_string());
+        }
+    }
+
+    enhanced_args
+}
+
+async fn enhance_command_with_context(command: &Command, context: &CommandContext) -> Command {
+    match command {
+        Command::Splash { trigger, args } => {
+            let enhanced_args = enhance_args_with_context(trigger, args, context).await;
+            Command::Splash {
+                trigger: trigger.clone(),
+                args: enhanced_args
+            }
+        },
+        _ => command.clone()
     }
 }
 
@@ -231,8 +309,26 @@ async fn execute_command(
 ) -> Result<()> {
     match command {
         Command::Pipeline(commands) => {
-            let labels = commands.iter().map(command_label).collect::<Vec<_>>();
-            println!("{}", SmartPrompt::pipeline_summary(&labels));
+            // Create detailed pipeline stages for better visualization
+            let mut stages = Vec::new();
+            for (i, cmd) in commands.iter().enumerate() {
+                let stage = PipelineStage::new(
+                    &format!("Stage {}", i + 1),
+                    &command_label(cmd),
+                )
+                .with_description(match cmd {
+                    Command::Splash { trigger, .. } => Some(format!("Splash command: {}", trigger)),
+                    Command::Shell(cmd_str) => Some(format!("Shell command: {}", cmd_str)),
+                    Command::NaturalLanguage(_) => Some("Natural language query".to_string()),
+                    Command::Pipeline(_) => Some("Nested pipeline".to_string()),
+                }.unwrap_or_else(|| "Unknown command".to_string()))
+                .with_duration(Duration::from_secs((i + 1) as u64 * 2)); // Estimate duration based on stage number
+
+                stages.push(stage);
+            }
+
+            println!("{}", SmartPrompt::pipeline_summary_detailed(&stages));
+
             for cmd in flatten_pipeline(commands) {
                 handle_basic_command(
                     cmd,
