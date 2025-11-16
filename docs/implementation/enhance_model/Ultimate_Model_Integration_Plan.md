@@ -170,7 +170,8 @@ pub async fn execute(args: ModelAddArgs) -> Result<()> {
     
     // 3. Secure API key input if required
     if profile.api_key_required {
-        if !keyring::Entry::new("kandil", &format!("api_key_{}", profile.provider)).exists()? {
+        let entry = keyring::Entry::new("kandil", &format!("api_key_{}", profile.provider))?;
+        if matches!(entry.get_password(), Err(keyring::Error::NoEntry)) {
             eprintln!("🔐 API key required for {}", profile.name);
             eprintln!("   ℹ️  Get key from: {}", profile.api_key_url);
             
@@ -730,21 +731,27 @@ impl ModelSecurityValidator {
         let path_str = path.to_string_lossy();
         
         // Spawn separate process with restricted permissions
-        let output = tokio::process::Command::new("kandil-sandbox")
+        let mut child = tokio::process::Command::new("kandil-sandbox")
             .arg("load-test")
             .arg(&*path_str)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true)
-            .timeout(Duration::from_secs(30))
-            .output()
-            .await?;
-        
-        if !output.status.success() {
-            bail!("Sandboxed load test failed: {}", String::from_utf8_lossy(&output.stderr));
+            .spawn()?;
+
+        let result = tokio::time::timeout(Duration::from_secs(30), child.wait_with_output()).await;
+
+        match result {
+            Ok(Ok(output)) if output.status.success() => Ok(()),
+            Ok(Ok(output)) => {
+                bail!("Sandboxed load test failed: {}", String::from_utf8_lossy(&output.stderr))
+            }
+            Ok(Err(e)) => Err(e.into()),
+            Err(_) => {
+                child.kill().ok();
+                bail!("Sandboxed load test timed out (possible corrupted model)")
+            }
         }
-        
-        Ok(())
     }
 }
 ```

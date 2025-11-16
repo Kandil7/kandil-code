@@ -191,8 +191,9 @@ impl CrossPlatformHardwareDetector {
                 .with_disks()
         );
         
-        let total_ram_gb = sys.total_memory() as f64 / 1024.0 / 1024.0;
-        let available_ram_gb = sys.available_memory() as f64 / 1024.0 / 1024.0;
+        const KIB_TO_GIB: f64 = 1.0 / (1024.0 * 1024.0 * 1024.0);
+        let total_ram_gb = sys.total_memory() as f64 * KIB_TO_GIB;
+        let available_ram_gb = sys.available_memory() as f64 * KIB_TO_GIB;
         let cpu_cores = sys.cpus().len();
         let cpu_freq_ghz = sys.cpus().get(0).map(|c| c.frequency() as f64 / 1000.0).unwrap_or(0.0);
         
@@ -1055,7 +1056,7 @@ impl LinuxSecurityHardening {
         
         // 3. Ollama socket: Verify permissions
         if Path::new("/var/run/ollama/ollama.sock").exists() {
-            self.verify_socket_permissions()?;
+            Self::verify_socket_permissions()?;
         }
         
         // 4. Swap encryption: Warn if disabled
@@ -1092,6 +1093,23 @@ impl LinuxSecurityHardening {
             .output()?;
         
         Ok(String::from_utf8_lossy(&output.stdout).contains("crypt"))
+    }
+
+    fn verify_socket_permissions() -> Result<()> {
+        use std::os::unix::fs::PermissionsExt;
+
+        let metadata = fs::metadata("/var/run/ollama/ollama.sock")?;
+        let mode = metadata.permissions().mode();
+
+        if mode & 0o777 != 0o660 {
+            bail!(
+                "SELinux/AppArmor: Ollama socket has insecure permissions: {:o}\n\
+                Fix: sudo chmod 660 /var/run/ollama/ollama.sock",
+                mode & 0o777
+            );
+        }
+
+        Ok(())
     }
 }
 
@@ -1147,7 +1165,7 @@ impl CrossPlatformBenchmark {
         let mut results = vec![];
         
         // Get compatible runtimes
-        let runtimes = self.get_compatible_runtimes(&hardware);
+        let runtimes = self.get_compatible_runtimes(&hardware).await?;
         
         for runtime in runtimes {
             tracing::info!("Benchmarking {} on {}", model_name, runtime.name());
@@ -1199,40 +1217,56 @@ impl CrossPlatformBenchmark {
         })
     }
     
-    fn get_compatible_runtimes(&self, hardware: &HardwareReport) -> Vec<Box<dyn AIProvider>> {
+    async fn get_compatible_runtimes(&self, hardware: &HardwareReport) -> Result<Vec<Box<dyn AIProvider>>> {
         let mut runtimes = vec![];
         
         match hardware.platform {
             Platform::macOS => {
                 if cfg!(target_arch = "aarch64") {
-                    runtimes.push(Box::new(CoreMLAdapter::new(...)?));
+                    if let Ok(adapter) = CoreMLAdapter::new(/* profile clone */) {
+                        runtimes.push(Box::new(adapter));
+                    }
                 }
-                runtimes.push(Box::new(LlamaCppAdapter::new(...)?));
+                if let Ok(adapter) = LlamaCppAdapter::new(/* profile clone */) {
+                    runtimes.push(Box::new(adapter));
+                }
             }
             Platform::iOS => {
-                runtimes.push(Box::new(IOSCoreMLAdapter::new(...)?));
+                    if let Ok(adapter) = IOSCoreMLAdapter::new(/* profile clone */) {
+                    runtimes.push(Box::new(adapter));
+                }
             }
             Platform::Android => {
                 if Self::is_ai_core_available() {
-                    runtimes.push(Box::new(AndroidAICoreAdapter::new(...)?));
+                    if let Ok(adapter) = AndroidAICoreAdapter::new(/* profile clone */) {
+                        runtimes.push(Box::new(adapter));
+                    }
                 }
-                runtimes.push(Box::new(TFLiteAdapter::new(...)?));
+                if let Ok(adapter) = TFLiteAdapter::new(/* profile clone */) {
+                    runtimes.push(Box::new(adapter));
+                }
             }
             _ => {
                 // Desktop platforms
                 if Self::is_ollama_available() {
-                    runtimes.push(Box::new(OllamaAdapter::new(...)?));
+                    if let Ok(adapter) = OllamaAdapter::new(/* profile clone */).await {
+                        runtimes.push(Box::new(adapter));
+                    }
                 }
                 if Self::is_lmstudio_available() {
-                    runtimes.push(Box::new(LMStudioAdapter::new(...)?));
+                    if let Ok(adapter) = LMStudioAdapter::new(/* profile clone */).await {
+                        runtimes.push(Box::new(adapter));
+                    }
                 }
                 if Self::is_llamacpp_available() {
-                    runtimes.push(Box::new(LlamaCppAdapter::new(...)?));
+                    if let Ok(adapter) = LlamaCppAdapter::new(/* profile clone */) {
+                        runtimes.push(Box::new(adapter));
+                    }
                 }
             }
         }
         
-        runtimes
+        Ok(runtimes)
     }
 }
 

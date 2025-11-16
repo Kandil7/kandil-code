@@ -366,15 +366,16 @@ impl FoundryLocalAdapter {
             .unwrap_or_else(|_| "http://localhost:5001".to_string());
         
         let credential = Arc::new(DefaultAzureCredential::default());
-        
-        // Test authentication
-        self.test_azure_auth().await?;
-        
-        Ok(Self {
+        let adapter = Self {
             client: Arc::new(Client::new()),
             endpoint,
             credential,
-        })
+        };
+
+        // Test authentication with fully constructed adapter
+        adapter.test_azure_auth().await?;
+        
+        Ok(adapter)
     }
     
     fn verify_onnx_runtime() -> Result<()> {
@@ -581,11 +582,31 @@ impl WindowsHardwareExt {
     
     /// Get available disk space for model downloads
     pub fn get_available_space_gb(path: &Path) -> Result<f64> {
-        use std::os::windows::fs::MetadataExt;
-        
-        let metadata = fs::metadata(path)?;
-        let free_bytes = metadata.volume_serial_number(); // Simplified
-        Ok(free_bytes as f64 / 1e9)
+        use std::os::windows::ffi::OsStrExt;
+        use winapi::um::fileapi::GetDiskFreeSpaceExW;
+
+        let wide_path: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        let mut free_bytes_available: u64 = 0;
+
+        let ok = unsafe {
+            GetDiskFreeSpaceExW(
+                wide_path.as_ptr(),
+                &mut free_bytes_available as *mut u64,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        };
+
+        if ok == 0 {
+            bail!("GetDiskFreeSpaceExW failed for {}", path.display());
+        }
+
+        Ok(free_bytes_available as f64 / 1e9)
     }
 }
 
