@@ -31,6 +31,11 @@ jsonrpc-core = "18.0"
 jsonrpc-http-server = "18.0"
 lsp-types = "0.97"
 serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", optional = true }
 tokio = { version = "1.0", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 reqwest = { version = "0.11", features = ["json"] }
@@ -90,6 +95,7 @@ predicates = "3.0"
 default = ["tui"]
 tui = ["ratatui", "crossterm", "tui-textarea", "syntect"]
 gpu-rendering = ["wgpu", "pollster"]
+wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "web-sys"]
 
 [[bin]]
 name = "kandil"
