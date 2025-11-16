@@ -1,13 +1,13 @@
 //! Meta-agent for self-improvement
-//! 
+//!
 //! Agent that analyzes and improves the system itself
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState};
-use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,7 +81,7 @@ impl MetaAgent {
         );
 
         let analysis = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         // For now, we'll return a basic analysis
         Ok(SystemAnalysis {
@@ -116,7 +116,10 @@ impl MetaAgent {
         })
     }
 
-    pub async fn generate_improvement_plan(&self, analysis: &SystemAnalysis) -> Result<Vec<ImprovementPlan>> {
+    pub async fn generate_improvement_plan(
+        &self,
+        analysis: &SystemAnalysis,
+    ) -> Result<Vec<ImprovementPlan>> {
         let prompt = format!(
             r#"Based on this system analysis:
             Performance: {:?}
@@ -139,28 +142,30 @@ impl MetaAgent {
         );
 
         let plans = self.ai.chat(&prompt).await?;
-        
+
         // For now, returning a basic improvement plan
-        Ok(vec![
-            ImprovementPlan {
-                title: "Optimize Database Queries".to_string(),
-                description: "Address performance bottlenecks in database queries".to_string(),
-                priority: Priority::High,
-                impact: Impact::High,
-                implementation_steps: vec![
-                    "Profile slow queries".to_string(),
-                    "Add appropriate indexes".to_string(),
-                    "Optimize query patterns".to_string(),
-                ],
-                estimated_effort: "Medium".to_string(),
-                expected_benefits: vec!["Improved response time".to_string(), "Better user experience".to_string()],
-                dependencies: vec![],
-            }
-        ])
+        Ok(vec![ImprovementPlan {
+            title: "Optimize Database Queries".to_string(),
+            description: "Address performance bottlenecks in database queries".to_string(),
+            priority: Priority::High,
+            impact: Impact::High,
+            implementation_steps: vec![
+                "Profile slow queries".to_string(),
+                "Add appropriate indexes".to_string(),
+                "Optimize query patterns".to_string(),
+            ],
+            estimated_effort: "Medium".to_string(),
+            expected_benefits: vec![
+                "Improved response time".to_string(),
+                "Better user experience".to_string(),
+            ],
+            dependencies: vec![],
+        }])
     }
 
     pub async fn evolve_agent_capabilities(&self) -> Result<String> {
-        let prompt = r#"Analyze your own capabilities as an AI agent. Identify areas for improvement in:
+        let prompt =
+            r#"Analyze your own capabilities as an AI agent. Identify areas for improvement in:
         - Reasoning effectiveness
         - Task completion accuracy
         - Communication clarity
@@ -168,7 +173,8 @@ impl MetaAgent {
         - Learning from interactions
         
         Propose specific improvements to your own functioning.
-        "#.to_string();
+        "#
+            .to_string();
 
         self.ai.chat(&prompt).await
     }
@@ -181,7 +187,7 @@ impl Agent for MetaAgent {
             "As a self-improving agent, given this analysis task: {}\n\nPlan how to improve system capabilities based on the findings.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -191,7 +197,7 @@ impl Agent for MetaAgent {
             "Implement this self-improvement plan: {}\n\nExecute changes to enhance system capabilities.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -201,7 +207,7 @@ impl Agent for MetaAgent {
             "Analyze these self-improvement results: {}\n\nHow effective were these changes? What further improvements are needed?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

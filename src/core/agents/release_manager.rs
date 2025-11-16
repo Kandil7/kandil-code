@@ -1,14 +1,14 @@
 //! Release Management System for v2.0
-//! 
+//!
 //! Handles cross-platform builds, security audits, quality checks, and release preparation
 
+use crate::core::adapters::ai::KandilAI;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -145,11 +145,36 @@ impl ReleaseManager {
                 ],
             },
             platforms: vec![
-                Platform { name: "Linux x86_64".to_string(), triple: "x86_64-unknown-linux-gnu".to_string(), supported: true, build_status: BuildStatus::Pending },
-                Platform { name: "Linux ARM64".to_string(), triple: "aarch64-unknown-linux-gnu".to_string(), supported: true, build_status: BuildStatus::Pending },
-                Platform { name: "Windows x86_64".to_string(), triple: "x86_64-pc-windows-msvc".to_string(), supported: true, build_status: BuildStatus::Pending },
-                Platform { name: "macOS x86_64".to_string(), triple: "x86_64-apple-darwin".to_string(), supported: true, build_status: BuildStatus::Pending },
-                Platform { name: "macOS ARM64".to_string(), triple: "aarch64-apple-darwin".to_string(), supported: true, build_status: BuildStatus::Pending },
+                Platform {
+                    name: "Linux x86_64".to_string(),
+                    triple: "x86_64-unknown-linux-gnu".to_string(),
+                    supported: true,
+                    build_status: BuildStatus::Pending,
+                },
+                Platform {
+                    name: "Linux ARM64".to_string(),
+                    triple: "aarch64-unknown-linux-gnu".to_string(),
+                    supported: true,
+                    build_status: BuildStatus::Pending,
+                },
+                Platform {
+                    name: "Windows x86_64".to_string(),
+                    triple: "x86_64-pc-windows-msvc".to_string(),
+                    supported: true,
+                    build_status: BuildStatus::Pending,
+                },
+                Platform {
+                    name: "macOS x86_64".to_string(),
+                    triple: "x86_64-apple-darwin".to_string(),
+                    supported: true,
+                    build_status: BuildStatus::Pending,
+                },
+                Platform {
+                    name: "macOS ARM64".to_string(),
+                    triple: "aarch64-apple-darwin".to_string(),
+                    supported: true,
+                    build_status: BuildStatus::Pending,
+                },
             ],
             security_checks: vec![],
             performance_metrics: PerformanceMetrics {
@@ -174,13 +199,13 @@ impl ReleaseManager {
 
     pub fn run_security_audit(&mut self) -> Result<()> {
         println!("Running security audit on dependencies...");
-        
+
         // Run cargo-audit to check for known vulnerabilities
         match Command::new("cargo").arg("audit").output() {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                
+
                 if output.status.success() {
                     println!("✓ Security audit passed - no vulnerabilities found");
                 } else {
@@ -197,7 +222,10 @@ impl ReleaseManager {
         }
 
         // Generate Software Bill of Materials (SBOM)
-        match Command::new("cargo").args(&["sbom", "--format", "cyclonedx"]).output() {
+        match Command::new("cargo")
+            .args(&["sbom", "--format", "cyclonedx"])
+            .output()
+        {
             Ok(output) => {
                 if output.status.success() {
                     fs::write("sbom.xml", &output.stdout)?;
@@ -218,7 +246,8 @@ impl ReleaseManager {
             name: "Dependency Audit".to_string(),
             description: "Audit dependencies for known vulnerabilities".to_string(),
             passed: true,
-            details: "All dependencies have been audited and no critical vulnerabilities found".to_string(),
+            details: "All dependencies have been audited and no critical vulnerabilities found"
+                .to_string(),
         });
 
         Ok(())
@@ -226,7 +255,7 @@ impl ReleaseManager {
 
     pub fn run_performance_tests(&mut self) -> Result<()> {
         println!("Running performance tests...");
-        
+
         // Create a basic benchmark configuration
         let benchmark_content = r#"
 // benches/cli_bench.rs
@@ -249,38 +278,43 @@ criterion_main!(benches);
         // Create benchmark directory and file
         fs::create_dir_all("benches")?;
         fs::write("benches/cli_bench.rs", benchmark_content)?;
-        
+
         // Run benchmarks (would normally use cargo bench)
         println!("✓ Performance tests configured");
-        
+
         // In a real implementation, this would run actual benchmarks
         // For simulation, we'll add mock results
-        self.performance_metrics.benchmark_results.push(BenchmarkResult {
-            name: "chat_response_time".to_string(),
-            avg_time_ns: 420_000_000, // 420ms
-            operations_per_second: 120,
-            memory_allocated_kb: 2048,
-        });
+        self.performance_metrics
+            .benchmark_results
+            .push(BenchmarkResult {
+                name: "chat_response_time".to_string(),
+                avg_time_ns: 420_000_000, // 420ms
+                operations_per_second: 120,
+                memory_allocated_kb: 2048,
+            });
 
         Ok(())
     }
 
     pub fn generate_build_artifacts(&mut self) -> Result<()> {
         println!("Generating build artifacts for all platforms...");
-        
+
         // Create target directory if it doesn't exist
         fs::create_dir_all("target/dist")?;
-        
+
         // For each platform, create a mock artifact (simulating cross-compilation)
         for platform in &mut self.platforms {
             if platform.supported {
                 let filename = format!("kandil_code-v{}_{}", self.version, platform.triple);
                 let artifact_path = format!("target/dist/{}", filename);
-                
+
                 // In a real implementation, this would compile for the actual target
                 // For simulation, we'll create a placeholder
-                fs::write(&artifact_path, format!("Placeholder binary for {}", platform.name))?;
-                
+                fs::write(
+                    &artifact_path,
+                    format!("Placeholder binary for {}", platform.name),
+                )?;
+
                 self.build_artifacts.push(BuildArtifact {
                     platform: platform.name.clone(),
                     path: artifact_path,
@@ -288,64 +322,77 @@ criterion_main!(benches);
                     checksum: format!("sha256-{}", uuid::Uuid::new_v4().as_simple()),
                     created_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
                 });
-                
+
                 platform.build_status = BuildStatus::Success;
                 println!("✓ Built for {}", platform.name);
             }
         }
-        
+
         Ok(())
     }
 
     pub fn run_dependency_check(&mut self) -> Result<()> {
         println!("Checking dependencies for vulnerabilities...");
-        
+
         // In a real implementation, this would run more comprehensive dependency analysis
         // For simulation, add some mock vulnerabilities
-        self.dependencies.outdated_packages = vec![
-            "some-outdated-package".to_string(),
-        ];
-        
-        self.dependencies.vulnerabilities = vec![
-            Vulnerability {
-                id: "RUSTSEC-2023-0001".to_string(),
-                package: "mock-package".to_string(),
-                severity: "medium".to_string(),
-                title: "Mock vulnerability for testing".to_string(),
-                description: "This is a mock vulnerability for demonstration purposes".to_string(),
-                recommendation: "Update to the latest version when available".to_string(),
-            }
-        ];
-        
+        self.dependencies.outdated_packages = vec!["some-outdated-package".to_string()];
+
+        self.dependencies.vulnerabilities = vec![Vulnerability {
+            id: "RUSTSEC-2023-0001".to_string(),
+            package: "mock-package".to_string(),
+            severity: "medium".to_string(),
+            title: "Mock vulnerability for testing".to_string(),
+            description: "This is a mock vulnerability for demonstration purposes".to_string(),
+            recommendation: "Update to the latest version when available".to_string(),
+        }];
+
         Ok(())
     }
 
     pub fn create_release_package(&self) -> Result<()> {
         println!("Creating release packages...");
-        
+
         // Create release directory
         let release_dir = format!("releases/v{}", self.version);
         fs::create_dir_all(&release_dir)?;
-        
+
         // Copy build artifacts to release directory
         for artifact in &self.build_artifacts {
-            let dest_path = format!("{}/{}", release_dir, Path::new(&artifact.path).file_name().unwrap().to_string_lossy());
+            let dest_path = format!(
+                "{}/{}",
+                release_dir,
+                Path::new(&artifact.path)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+            );
             fs::copy(&artifact.path, &dest_path)?;
         }
-        
+
         // Create release notes
         let release_notes_content = self.format_release_notes();
-        fs::write(format!("{}/RELEASE_NOTES.md", release_dir), &release_notes_content)?;
-        
+        fs::write(
+            format!("{}/RELEASE_NOTES.md", release_dir),
+            &release_notes_content,
+        )?;
+
         // Create checksums file
         let mut checksums = String::new();
         for artifact in &self.build_artifacts {
-            checksums.push_str(&format!("{} {}\n", artifact.checksum, Path::new(&artifact.path).file_name().unwrap().to_string_lossy()));
+            checksums.push_str(&format!(
+                "{} {}\n",
+                artifact.checksum,
+                Path::new(&artifact.path)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+            ));
         }
         fs::write(format!("{}/CHECKSUMS.txt", release_dir), checksums)?;
-        
+
         println!("✓ Release packages created in {}", release_dir);
-        
+
         Ok(())
     }
 
@@ -423,17 +470,23 @@ Dependencies:
 
     pub async fn run_full_release_process(&mut self) -> Result<()> {
         println!("Starting v{} release process...", self.version);
-        
+
         self.run_security_audit()?;
         self.run_performance_tests()?;
         self.run_dependency_check()?;
         self.generate_build_artifacts()?;
         self.create_release_package()?;
-        
+
         let report = self.generate_release_report();
-        fs::write(format!("releases/v{}/RELEASE_REPORT.md", self.version), report)?;
-        
-        println!("✓ v{} release process completed successfully!", self.version);
+        fs::write(
+            format!("releases/v{}/RELEASE_REPORT.md", self.version),
+            report,
+        )?;
+
+        println!(
+            "✓ v{} release process completed successfully!",
+            self.version
+        );
         Ok(())
     }
 }

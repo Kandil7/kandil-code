@@ -1,5 +1,5 @@
 //! Marketplace and UI Themes Module
-//! 
+//!
 //! Module for plugin marketplace search and UI theme management
 
 use anyhow::Result;
@@ -23,7 +23,7 @@ pub struct Plugin {
     pub category: String,
     pub tags: Vec<String>,
     pub downloads: u64,
-    pub rating: f32, // 1-5
+    pub rating: f32,                // 1-5
     pub compatibility: Vec<String>, // supported versions
     pub download_url: String,
     pub license: String,
@@ -121,7 +121,12 @@ impl Marketplace {
         self.update_search_index();
     }
 
-    pub fn search(&self, query: &str, filters: &SearchFilters, sort_by: &SortOption) -> Vec<SearchResult> {
+    pub fn search(
+        &self,
+        query: &str,
+        filters: &SearchFilters,
+        sort_by: &SortOption,
+    ) -> Vec<SearchResult> {
         let mut results = vec![];
 
         // Search plugins
@@ -144,7 +149,12 @@ impl Marketplace {
         results
     }
 
-    fn matches_query_and_filters<T: Searchable>(&self, item: &T, query: &str, filters: &SearchFilters) -> bool {
+    fn matches_query_and_filters<T: Searchable>(
+        &self,
+        item: &T,
+        query: &str,
+        filters: &SearchFilters,
+    ) -> bool {
         // Check if query matches
         if !item.matches_query(query) {
             return false;
@@ -193,7 +203,7 @@ impl Marketplace {
                         SearchResult::Plugin(p) => p.rating,
                         SearchResult::Theme(t) => t.rating,
                     };
-                    
+
                     rating_b.partial_cmp(&rating_a).unwrap().then_with(|| {
                         let downloads_a = match a {
                             SearchResult::Plugin(p) => p.downloads,
@@ -266,29 +276,33 @@ impl Marketplace {
     fn update_search_index(&mut self) {
         // Build search index - in a real implementation this would be more sophisticated
         let mut index = HashMap::new();
-        
+
         for plugin in &self.plugins {
             for tag in &plugin.tags {
-                index.entry(tag.to_lowercase())
+                index
+                    .entry(tag.to_lowercase())
                     .or_insert_with(Vec::new)
                     .push(format!("plugin_{}", plugin.id));
             }
-            index.entry(plugin.name.to_lowercase())
+            index
+                .entry(plugin.name.to_lowercase())
                 .or_insert_with(Vec::new)
                 .push(format!("plugin_{}", plugin.id));
         }
-        
+
         for theme in &self.themes {
             for tag in &theme.tags {
-                index.entry(tag.to_lowercase())
+                index
+                    .entry(tag.to_lowercase())
                     .or_insert_with(Vec::new)
                     .push(format!("theme_{}", theme.id));
             }
-            index.entry(theme.name.to_lowercase())
+            index
+                .entry(theme.name.to_lowercase())
                 .or_insert_with(Vec::new)
                 .push(format!("theme_{}", theme.id));
         }
-        
+
         self.search_index = index;
     }
 }
@@ -303,9 +317,15 @@ trait Searchable {
 
 impl Searchable for Plugin {
     fn matches_query(&self, query: &str) -> bool {
-        self.name.to_lowercase().contains(&query.to_lowercase()) ||
-        self.description.to_lowercase().contains(&query.to_lowercase()) ||
-        self.tags.iter().any(|tag| tag.to_lowercase().contains(&query.to_lowercase()))
+        self.name.to_lowercase().contains(&query.to_lowercase())
+            || self
+                .description
+                .to_lowercase()
+                .contains(&query.to_lowercase())
+            || self
+                .tags
+                .iter()
+                .any(|tag| tag.to_lowercase().contains(&query.to_lowercase()))
     }
 
     fn category(&self) -> &str {
@@ -327,9 +347,15 @@ impl Searchable for Plugin {
 
 impl Searchable for Theme {
     fn matches_query(&self, query: &str) -> bool {
-        self.name.to_lowercase().contains(&query.to_lowercase()) ||
-        self.description.to_lowercase().contains(&query.to_lowercase()) ||
-        self.tags.iter().any(|tag| tag.to_lowercase().contains(&query.to_lowercase()))
+        self.name.to_lowercase().contains(&query.to_lowercase())
+            || self
+                .description
+                .to_lowercase()
+                .contains(&query.to_lowercase())
+            || self
+                .tags
+                .iter()
+                .any(|tag| tag.to_lowercase().contains(&query.to_lowercase()))
     }
 
     fn category(&self) -> &str {
@@ -361,7 +387,7 @@ impl ThemeManager {
     pub fn load_themes(&mut self) -> Result<()> {
         // In a real implementation, this would scan the theme directory
         // and load theme files
-        
+
         // For simulation, we'll add some default themes
         let default_theme = Theme {
             id: "default".to_string(),
@@ -395,7 +421,7 @@ impl ThemeManager {
             created_at: "2023-01-01".to_string(),
             updated_at: "2023-01-01".to_string(),
         };
-        
+
         let dark_theme = Theme {
             id: "dark".to_string(),
             name: "Dark Theme".to_string(),
@@ -428,10 +454,11 @@ impl ThemeManager {
             created_at: "2023-01-01".to_string(),
             updated_at: "2023-01-01".to_string(),
         };
-        
-        self.available_themes.insert("default".to_string(), default_theme);
+
+        self.available_themes
+            .insert("default".to_string(), default_theme);
         self.available_themes.insert("dark".to_string(), dark_theme);
-        
+
         Ok(())
     }
 

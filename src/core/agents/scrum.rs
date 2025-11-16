@@ -1,13 +1,13 @@
 //! Scrum simulation agent
-//! 
+//!
 //! Agent that simulates Scrum ceremonies and processes
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState};
-use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,33 +81,45 @@ pub struct ScrumSimulation {
 impl ScrumSimulation {
     pub fn new(ai: Arc<KandilAI>) -> Self {
         let mut templates = HashMap::new();
-        
+
         // Add ceremony templates
-        templates.insert("sprint_planning".to_string(), vec![
-            "Review product backlog items".to_string(),
-            "Define sprint goal".to_string(),
-            "Estimate effort for selected items".to_string(),
-            "Create sprint backlog".to_string(),
-            "Confirm team capacity".to_string(),
-        ]);
-        
-        templates.insert("daily_scrum".to_string(), vec![
-            "What did you do yesterday?".to_string(),
-            "What will you do today?".to_string(),
-            "Are there any blockers?".to_string(),
-        ]);
-        
-        templates.insert("sprint_review".to_string(), vec![
-            "Demo completed work".to_string(),
-            "Gather feedback".to_string(),
-            "Update product backlog".to_string(),
-        ]);
-        
-        templates.insert("sprint_retrospective".to_string(), vec![
-            "What went well?".to_string(),
-            "What could be improved?".to_string(),
-            "What will we commit to improve?".to_string(),
-        ]);
+        templates.insert(
+            "sprint_planning".to_string(),
+            vec![
+                "Review product backlog items".to_string(),
+                "Define sprint goal".to_string(),
+                "Estimate effort for selected items".to_string(),
+                "Create sprint backlog".to_string(),
+                "Confirm team capacity".to_string(),
+            ],
+        );
+
+        templates.insert(
+            "daily_scrum".to_string(),
+            vec![
+                "What did you do yesterday?".to_string(),
+                "What will you do today?".to_string(),
+                "Are there any blockers?".to_string(),
+            ],
+        );
+
+        templates.insert(
+            "sprint_review".to_string(),
+            vec![
+                "Demo completed work".to_string(),
+                "Gather feedback".to_string(),
+                "Update product backlog".to_string(),
+            ],
+        );
+
+        templates.insert(
+            "sprint_retrospective".to_string(),
+            vec![
+                "What went well?".to_string(),
+                "What could be improved?".to_string(),
+                "What will we commit to improve?".to_string(),
+            ],
+        );
 
         Self {
             ai,
@@ -116,9 +128,14 @@ impl ScrumSimulation {
         }
     }
 
-    pub async fn plan_sprint(&mut self, goal: String, duration_days: u32, team_size: u32) -> Result<Sprint> {
+    pub async fn plan_sprint(
+        &mut self,
+        goal: String,
+        duration_days: u32,
+        team_size: u32,
+    ) -> Result<Sprint> {
         let sprint_num = self.current_sprint.as_ref().map_or(1, |s| s.number + 1);
-        
+
         let new_sprint = Sprint {
             number: sprint_num,
             goal,
@@ -134,18 +151,26 @@ impl ScrumSimulation {
             committed_points: 40,
             completed_points: 0,
         };
-        
+
         self.current_sprint = Some(new_sprint.clone());
-        
+
         Ok(new_sprint)
     }
 
-    pub async fn conduct_ceremony(&self, ceremony_type: &str, participants: Vec<String>, sprint_data: Option<&Sprint>) -> Result<ScrumCeremony> {
-        let template = self.ceremony_templates.get(ceremony_type).cloned()
+    pub async fn conduct_ceremony(
+        &self,
+        ceremony_type: &str,
+        participants: Vec<String>,
+        sprint_data: Option<&Sprint>,
+    ) -> Result<ScrumCeremony> {
+        let template = self
+            .ceremony_templates
+            .get(ceremony_type)
+            .cloned()
             .unwrap_or_else(|| vec!["Default agenda items".to_string()]);
-            
+
         let mut agenda = template.clone();
-        
+
         // Add sprint-specific context
         if let Some(sprint) = sprint_data {
             agenda.push(format!("Sprint {} goal: {}", sprint.number, sprint.goal));
@@ -162,7 +187,7 @@ impl ScrumSimulation {
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         Ok(ScrumCeremony {
             name: ceremony_type.to_string(),
             participants,
@@ -189,10 +214,14 @@ impl ScrumSimulation {
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         Ok(Retrospective {
             sprint_number,
-            participants: vec!["Product Owner".to_string(), "Scrum Master".to_string(), "Developers".to_string()],
+            participants: vec![
+                "Product Owner".to_string(),
+                "Scrum Master".to_string(),
+                "Developers".to_string(),
+            ],
             good_things: vec![
                 "Successfully delivered all committed stories".to_string(),
                 "Improved test coverage".to_string(),
@@ -201,24 +230,20 @@ impl ScrumSimulation {
                 "Daily standups ran long".to_string(),
                 "Integration issues in last days".to_string(),
             ],
-            action_items: vec![
-                ActionItem {
-                    id: format!("S{}-RT-1", sprint_number),
-                    description: "Timebox daily standups to 10 minutes".to_string(),
-                    assignee: "Scrum Master".to_string(),
-                    priority: Priority::High,
-                    due_date: chrono::Utc::now()
-                        .checked_add_days(chrono::Days::new(7))
-                        .unwrap()
-                        .format("%Y-%m-%d")
-                        .to_string(),
-                    status: ActionStatus::NotStarted,
-                }
-            ],
+            action_items: vec![ActionItem {
+                id: format!("S{}-RT-1", sprint_number),
+                description: "Timebox daily standups to 10 minutes".to_string(),
+                assignee: "Scrum Master".to_string(),
+                priority: Priority::High,
+                due_date: chrono::Utc::now()
+                    .checked_add_days(chrono::Days::new(7))
+                    .unwrap()
+                    .format("%Y-%m-%d")
+                    .to_string(),
+                status: ActionStatus::NotStarted,
+            }],
             satisfaction_score: 8,
-            lessons_learned: vec![
-                "Early integration reduces late-stage issues".to_string(),
-            ],
+            lessons_learned: vec!["Early integration reduces late-stage issues".to_string()],
         })
     }
 
@@ -250,7 +275,7 @@ impl Agent for ScrumSimulation {
             "As a Scrum Master, given this Scrum process challenge: {}\n\nPlan the next Scrum activity. Consider team dynamics, ceremony effectiveness, and process improvements.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -260,7 +285,7 @@ impl Agent for ScrumSimulation {
             "Execute this Scrum process plan: {}\n\nFacilitate ceremonies, resolve impediments, or improve team processes.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -270,7 +295,7 @@ impl Agent for ScrumSimulation {
             "Analyze these Scrum process results: {}\n\nHow do these process changes impact team productivity and delivery?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

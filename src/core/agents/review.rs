@@ -1,18 +1,18 @@
 //! Code review agent
-//! 
+//!
 //! Specialized agent for reviewing code quality, security, and best practices
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use crate::core::agents::base::{Agent, AgentState};
-use crate::core::adapters::ai::KandilAI;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewReport {
     pub issues: Vec<Issue>,
-    pub score: u8,  // 0-100 score
+    pub score: u8, // 0-100 score
     pub summary: String,
     pub recommendations: Vec<String>,
 }
@@ -57,7 +57,7 @@ impl ReviewAgent {
 
     pub async fn code_review(&self, file_path: &str) -> Result<ReviewReport> {
         let content = std::fs::read_to_string(file_path)?;
-        
+
         let prompt = format!(
             r#"Review this code for:
             - Bugs and logic errors
@@ -68,26 +68,24 @@ impl ReviewAgent {
             - Documentation issues
 
             Code: {}
-            "#, 
+            "#,
             content
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         // For now, we'll return a basic report
         Ok(ReviewReport {
-            issues: vec![
-                Issue {
-                    id: "SEC-001".to_string(),
-                    title: "Potential security issue".to_string(),
-                    description: "Found potential vulnerability in code".to_string(),
-                    severity: Severity::High,
-                    category: Category::Security,
-                    line_number: Some(10),
-                    suggestion: "Add input validation".to_string(),
-                }
-            ],
+            issues: vec![Issue {
+                id: "SEC-001".to_string(),
+                title: "Potential security issue".to_string(),
+                description: "Found potential vulnerability in code".to_string(),
+                severity: Severity::High,
+                category: Category::Security,
+                line_number: Some(10),
+                suggestion: "Add input validation".to_string(),
+            }],
             score: 85,
             summary: "Code review completed with suggestions for improvements".to_string(),
             recommendations: vec![
@@ -108,25 +106,23 @@ impl ReviewAgent {
             - Maintainability
 
             Design: {}
-            "#, 
+            "#,
             design_doc
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         // For now, we'll return a basic report
         Ok(ReviewReport {
-            issues: vec![
-                Issue {
-                    id: "ARCH-001".to_string(),
-                    title: "Architecture concern".to_string(),
-                    description: "Potential scalability issue identified".to_string(),
-                    severity: Severity::Medium,
-                    category: Category::Performance,
-                    line_number: None,
-                    suggestion: "Consider implementing caching".to_string(),
-                }
-            ],
+            issues: vec![Issue {
+                id: "ARCH-001".to_string(),
+                title: "Architecture concern".to_string(),
+                description: "Potential scalability issue identified".to_string(),
+                severity: Severity::Medium,
+                category: Category::Performance,
+                line_number: None,
+                suggestion: "Consider implementing caching".to_string(),
+            }],
             score: 78,
             summary: "Architecture review completed".to_string(),
             recommendations: vec![
@@ -144,7 +140,7 @@ impl Agent for ReviewAgent {
             "Given this code review task: {}\n\nPlan the next review step. What aspect should we focus on for the most impactful feedback?",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -154,7 +150,7 @@ impl Agent for ReviewAgent {
             "Perform this code review action: {}\n\nAnalyze the code and identify specific issues with detailed explanations.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -164,7 +160,7 @@ impl Agent for ReviewAgent {
             "Analyze these code review findings: {}\n\nWhat are the most critical issues that need to be addressed first?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }
