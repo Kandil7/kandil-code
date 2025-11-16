@@ -1,9 +1,9 @@
 //! Base agent framework for Kandil Code
-//! 
+//!
 //! Contains the ReAct (Reason-Act-Observe) agent framework
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::time::timeout;
@@ -54,17 +54,18 @@ impl ReActLoop {
         while agent.should_continue(&state).await {
             // Plan step
             let plan = timeout(self.timeout_per_step, agent.plan(&state)).await??;
-            
+
             // Act step
             let action_result = timeout(self.timeout_per_step, agent.act(&plan)).await??;
-            
-            // Observe step 
-            let observation = timeout(self.timeout_per_step, agent.observe(&action_result)).await??;
-            
+
+            // Observe step
+            let observation =
+                timeout(self.timeout_per_step, agent.observe(&action_result)).await??;
+
             // Update state
             state.observations.push(observation.clone());
             state.current_step += 1;
-            
+
             // Check if task is complete based on the observation
             // This is a simple check - in a real implementation, this would be more sophisticated
             if observation.contains("COMPLETED") || observation.contains("FINISHED") {
@@ -75,9 +76,9 @@ impl ReActLoop {
         }
 
         Ok(AgentResult {
-            final_answer: state.result.unwrap_or_else(|| {
-                state.observations.join("\n")
-            }),
+            final_answer: state
+                .result
+                .unwrap_or_else(|| state.observations.join("\n")),
             steps_taken: state.current_step,
             success: state.is_complete || !state.observations.is_empty(),
         })

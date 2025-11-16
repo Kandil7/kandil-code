@@ -64,6 +64,7 @@ portable-pty = "0.8"
 rustyline = "12"
 axum = { version = "0.7", features = ["ws"] }
 walkdir = "2.5"
+ring = "0.17"
 
 [dev-dependencies]
 tokio-test = "0.4"

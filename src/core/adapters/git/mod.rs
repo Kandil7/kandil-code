@@ -1,5 +1,5 @@
 //! Git adapter implementation
-//! 
+//!
 //! Contains functionality for Git operations
 //! This will be expanded in later phases as needed
 

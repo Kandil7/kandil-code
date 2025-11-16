@@ -56,7 +56,7 @@ pub struct PermissionRequest {
     pub file_paths: Vec<String>,
     pub is_read: bool,
     pub is_write: bool,
-    pub is_system: bool,  // System-level operations like git, network, etc.
+    pub is_system: bool, // System-level operations like git, network, etc.
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,15 +86,18 @@ impl PermissionManager {
         self.current_level.read().await.clone()
     }
 
-    pub async fn check_permission(&self, request: &PermissionRequest) -> Result<PermissionResponse> {
+    pub async fn check_permission(
+        &self,
+        request: &PermissionRequest,
+    ) -> Result<PermissionResponse> {
         let level = self.get_trust_level().await;
-        
+
         let should_ask_user = match level {
             TrustLevel::Paranoid => true,
             TrustLevel::Cautious => request.is_write || request.is_system,
             TrustLevel::Normal => request.is_system, // Only ask for system operations like git push
-            TrustLevel::Adventurous => false, // Never ask, just notify
-            TrustLevel::Godmode => false, // Silent execution
+            TrustLevel::Adventurous => false,        // Never ask, just notify
+            TrustLevel::Godmode => false,            // Silent execution
         };
 
         if should_ask_user {
@@ -102,8 +105,10 @@ impl PermissionManager {
             // For now, we'll simulate user response based on trust level
             Ok(PermissionResponse {
                 allowed: false, // Simulating user needs to approve
-                reason: format!("Action '{}' requires approval at trust level {:?}", 
-                               request.action, level),
+                reason: format!(
+                    "Action '{}' requires approval at trust level {:?}",
+                    request.action, level
+                ),
             })
         } else {
             // Auto-allowed based on trust level
@@ -114,18 +119,25 @@ impl PermissionManager {
         }
     }
 
-    pub async fn request_permission_interactive(&self, request: &PermissionRequest) -> Result<PermissionResponse> {
+    pub async fn request_permission_interactive(
+        &self,
+        request: &PermissionRequest,
+    ) -> Result<PermissionResponse> {
         // This would show an interactive prompt to the user
         // For simulation, we'll use the check_permission logic
         self.check_permission(request).await
     }
 
-    pub async fn execute_with_permission_check<F, T>(&self, request: PermissionRequest, operation: F) -> Result<T>
+    pub async fn execute_with_permission_check<F, T>(
+        &self,
+        request: PermissionRequest,
+        operation: F,
+    ) -> Result<T>
     where
         F: FnOnce() -> Result<T>,
     {
         let permission = self.check_permission(&request).await?;
-        
+
         if permission.allowed {
             operation()
         } else {
@@ -188,7 +200,7 @@ impl TrustSystem {
         println!("3. 🟠 Normal: Auto-run writes, ask for git push");
         println!("4. 🔴 Adventurous: Auto-run everything, notify only");
         println!("5. ⚫ Godmode: Silent execution (CI mode)");
-        
+
         // For simulation purposes, returning Normal as default
         Ok(TrustLevel::Normal)
     }
@@ -201,35 +213,57 @@ impl TrustSystem {
             action: action.to_string(),
             file_paths: vec![],
             is_read: action.contains("read") || action.contains("list") || action.contains("get"),
-            is_write: action.contains("write") || action.contains("create") || action.contains("update"),
-            is_system: action.contains("git") || action.contains("system") || action.contains("network"),
+            is_write: action.contains("write")
+                || action.contains("create")
+                || action.contains("update"),
+            is_system: action.contains("git")
+                || action.contains("system")
+                || action.contains("network"),
         };
 
-        self.manager.execute_with_permission_check(request, operation).await
+        self.manager
+            .execute_with_permission_check(request, operation)
+            .await
     }
 
     pub async fn check_command_allowed(&self, command: &str) -> bool {
         let config = self.config.read().await;
-        
+
         // Check if command is explicitly blocked
-        if config.blocked_commands.iter().any(|blocked| command.contains(blocked)) {
+        if config
+            .blocked_commands
+            .iter()
+            .any(|blocked| command.contains(blocked))
+        {
             return false;
         }
-        
+
         // Check if command is explicitly allowed
-        if config.allowed_commands.iter().any(|allowed| command.contains(allowed)) {
+        if config
+            .allowed_commands
+            .iter()
+            .any(|allowed| command.contains(allowed))
+        {
             return true;
         }
-        
+
         // For this implementation, default to allowing commands that aren't explicitly blocked
         true
     }
 
-    pub async fn log_permission_decision(&self, request: &PermissionRequest, response: &PermissionResponse) {
+    pub async fn log_permission_decision(
+        &self,
+        request: &PermissionRequest,
+        response: &PermissionResponse,
+    ) {
         let config = self.config.read().await;
-        
+
         if response.allowed && config.notify_on_allow {
-            println!("✅ Allowed: {} (Trust: {:?})", request.action, self.manager.get_trust_level().await);
+            println!(
+                "✅ Allowed: {} (Trust: {:?})",
+                request.action,
+                self.manager.get_trust_level().await
+            );
         } else if !response.allowed && config.notify_on_deny {
             println!("❌ Denied: {} - {}", request.action, response.reason);
         }
@@ -250,7 +284,7 @@ mod tests {
     #[tokio::test]
     async fn test_permission_manager() {
         let manager = PermissionManager::new(TrustLevel::Normal);
-        
+
         let request = PermissionRequest {
             action: "read_file".to_string(),
             file_paths: vec!["test.txt".to_string()],
@@ -258,7 +292,7 @@ mod tests {
             is_write: false,
             is_system: false,
         };
-        
+
         let response = manager.check_permission(&request).await.unwrap();
         assert!(response.allowed); // Read operations should be allowed at Normal level
     }
@@ -266,7 +300,7 @@ mod tests {
     #[tokio::test]
     async fn test_trust_system() {
         let trust_system = TrustSystem::new(TrustLevel::Normal);
-        
+
         assert!(trust_system.check_command_allowed("read_file").await);
         assert!(trust_system.check_command_allowed("list_directory").await);
         assert!(!trust_system.check_command_allowed("delete_file").await);
