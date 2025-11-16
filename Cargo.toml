@@ -79,6 +79,7 @@ blake3 = "1.5"
 whoami = "1.0"
 tracing = "0.1"
 futures-util = "0.3"
+rand = "0.8"
 portable-pty = "0.8"
 rustyline = "12"
 axum = { version = "0.7", features = ["ws"] }
