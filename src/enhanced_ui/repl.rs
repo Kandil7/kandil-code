@@ -56,6 +56,11 @@ pub async fn run_repl() -> Result<()> {
     println!("Kandil Shell initialized. Type /help for splash commands.");
 
     loop {
+        // Enhance context detection before input processing
+        context.refresh_project_context();
+        context.refresh_file_context().await;
+        context.refresh_git_status().await;
+
         let input = if let Some(remote) = mobile_bridge.try_voice_command()? {
             adaptive_ui.announce("status", "📱 Remote command received");
             remote
@@ -90,7 +95,9 @@ pub async fn run_repl() -> Result<()> {
 
         thought_streamer.emit(ThoughtFragment::Context(format!("Input `{}`", trimmed)));
         predictive_executor.prefetch(trimmed);
-        let parsed = parse_command(trimmed);
+
+        // Enhanced context-aware command parsing
+        let parsed = parse_command_enhanced(trimmed, &context).await;
         if let Err(err) = execute_command(
             parsed,
             &terminal,
@@ -106,6 +113,7 @@ pub async fn run_repl() -> Result<()> {
 
         context.remember_command(trimmed);
         context.refresh_project_context();
+        context.refresh_file_context().await; // Refresh file context after execution
         context
             .job_tracker
             .auto_complete_elapsed(Duration::from_secs(45));

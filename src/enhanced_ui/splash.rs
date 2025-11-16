@@ -38,7 +38,8 @@ impl CommandContext {
     }
 
     pub fn refresh_project_context(&mut self) {
-        self.project_context = ProjectContext::detect();
+        // Detect current project state including errors and test failures
+        self.project_context = ProjectContext::detect_with_analysis();
     }
 
     pub fn contextual_suggestions(&self) -> Vec<&'static str> {

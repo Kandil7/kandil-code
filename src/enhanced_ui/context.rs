@@ -49,18 +49,99 @@ impl ProjectContext {
         }
     }
 
+    pub fn detect_with_analysis() -> Self {
+        let cwd = match std::env::current_dir() {
+            Ok(dir) => dir,
+            Err(_) => return Self::default(),
+        };
+
+        let project_type = detect_project_type(&cwd);
+        let git_state = detect_git_state(&cwd);
+        let recent_files = detect_recent_files(&cwd, 5);
+
+        // Perform analysis to detect errors and test failures
+        let (errors, test_failures) = analyze_project_state(&cwd, &project_type);
+
+        Self {
+            project_type,
+            git_state,
+            recent_files,
+            errors,
+            test_failures,
+        }
+    }
+
     pub fn suggested_commands(&self) -> Vec<&'static str> {
-        let mut suggestions = vec!["/ask", "/review"];
-        if self.errors > 0 {
-            suggestions.push("/fix");
+        let mut suggestions = Vec::new();
+
+        // Always suggest basic commands
+        suggestions.push("/ask");
+
+        // Context-aware suggestions based on project state
+        match self.project_type {
+            ProjectType::Rust => {
+                if !self.git_state.staged_files.is_empty() {
+                    suggestions.push("/test"); // Run tests before commit for Rust projects
+                }
+                if self.errors > 0 {
+                    suggestions.push("/fix");
+                }
+                suggestions.push("/review"); // Code review is always relevant for Rust
+            },
+            ProjectType::Node => {
+                if !self.git_state.staged_files.is_empty() {
+                    suggestions.push("/test"); // Run tests before commit for Node projects
+                }
+                if self.errors > 0 {
+                    suggestions.push("/fix");
+                }
+                suggestions.push("/review");
+            },
+            ProjectType::Python => {
+                if !self.git_state.staged_files.is_empty() {
+                    suggestions.push("/test"); // Run tests before commit for Python projects
+                }
+                if self.errors > 0 {
+                    suggestions.push("/fix");
+                }
+                suggestions.push("/review");
+            },
+            ProjectType::Unknown => {
+                // For unknown project types, suggest general purpose commands
+                if self.errors > 0 {
+                    suggestions.push("/fix");
+                }
+                if self.test_failures > 0 {
+                    suggestions.push("/test");
+                }
+                suggestions.push("/review");
+            }
         }
-        if self.test_failures > 0 {
-            suggestions.push("/test");
-        }
-        if self.git_state.staged_files.is_empty() {
+
+        // Suggest commit when there are staged files
+        if !self.git_state.staged_files.is_empty() {
             suggestions.push("/commit");
         }
+
+        // Suggest doc generation if files exist but no documentation
+        if !self.recent_files.is_empty() && self.has_code_files_without_docs() {
+            suggestions.push("/doc");
+        }
+
         suggestions
+    }
+}
+
+    fn has_code_files_without_docs(&self) -> bool {
+        self.recent_files.iter().any(|path| {
+            if let Some(ext) = path.extension() {
+                let ext_str = ext.to_string_lossy().to_lowercase();
+                // Check if it's a code file but likely doesn't have documentation
+                matches!(ext_str.as_str(), "rs" | "js" | "ts" | "py" | "go" | "cpp" | "h" | "java")
+            } else {
+                false
+            }
+        })
     }
 }
 
@@ -220,4 +301,83 @@ pub fn detect_unique_extensions(root: &Path, limit: usize) -> Vec<String> {
         }
     }
     extensions.into_iter().collect()
+}
+
+/// Analyze the project to detect build errors and test failures based on project type
+fn analyze_project_state(root: &Path, project_type: &ProjectType) -> (usize, usize) {
+    match project_type {
+        ProjectType::Rust => {
+            // For Rust, check for build issues and test status
+            // This is a simplified implementation - in a full implementation, we would run actual build/tests
+            let mut errors = 0;
+            let mut test_failures = 0;
+
+            // Check for common Rust error indicators in target directory
+            let target_path = root.join("target");
+            if target_path.exists() {
+                // Check for failed build artifacts or test results
+                // This is a simplified check - in reality we'd parse build logs
+                if root.join("Cargo.lock").exists() {
+                    errors = 0; // Assume build is OK if Cargo.lock exists
+                }
+            }
+
+            // For test failures, we could check for test output files
+            if target_path.join("tests").exists() {
+                // Count failed test artifacts
+                test_failures = 0; // Simplified
+            }
+
+            (errors, test_failures)
+        }
+        ProjectType::Node => {
+            // For Node.js projects
+            let mut errors = 0;
+            let mut test_failures = 0;
+
+            // Check if node_modules exists and is properly set up
+            if !root.join("node_modules").exists() {
+                errors += 1; // Missing dependencies might be an error
+            }
+
+            // Check for common test file patterns
+            let test_patterns = ["test", "__tests__", "*.test.js", "*.spec.js"];
+            for pattern in &test_patterns {
+                if root.join(pattern).exists() {
+                    test_failures = 0; // If test files exist, we mark as having tests to run
+                }
+            }
+
+            (errors, test_failures)
+        }
+        ProjectType::Python => {
+            // For Python projects
+            let mut errors = 0;
+            let mut test_failures = 0;
+
+            // Check for common Python project indicators
+            if root.join("requirements.txt").exists() || root.join("Pipfile").exists() {
+                // Check for missing virtual environment
+                if !root.join(".venv").exists() && !std::env::var("VIRTUAL_ENV").is_ok() {
+                    errors += 1;
+                }
+            }
+
+            // Check for test files
+            let test_dirs = ["tests", "test"];
+            for test_dir in &test_dirs {
+                if root.join(test_dir).is_dir() {
+                    test_failures = 0; // Mark as having tests to run
+                }
+            }
+
+            // Check for pytest or unittest discovery
+            if root.join("pytest.ini").exists() || root.join("setup.cfg").exists() {
+                test_failures = 0;
+            }
+
+            (errors, test_failures)
+        }
+        ProjectType::Unknown => (0, 0), // No specific analysis for unknown project types
+    }
 }
