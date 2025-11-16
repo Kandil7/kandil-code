@@ -35,6 +35,8 @@ This platform combines the efficiency of command-line interfaces with the intera
 - **Unified AI Interface**: Support for local models and cloud models (Claude, Qwen, OpenAI)
 - **Multi-Agent System**: Specialized agents for different development tasks
 - **Project Management**: Secure local storage with cloud synchronization (Supabase)
+- **Cross-Platform Benchmarking**: Built-in model performance benchmarking across different runtimes
+- **System Diagnostics**: Comprehensive system health checks with `doctor` command
 
 ### Local Model Integration
 - **Hardware-Aware Auto-Detection**: Automatically detects your hardware specs (RAM, CPU, GPU) and selects optimal models
@@ -52,6 +54,7 @@ This platform combines the efficiency of command-line interfaces with the intera
 - **Code Review**: Automated code quality and security analysis
 - **Testing**: Automated test generation and execution
 - **Refactoring**: Suggestion and application of code improvements with preview workflow
+- **Quick Commands**: Slash commands for rapid development tasks (`/ref`, `/test`, `/fix`, `/review`)
 
 ### Professional Role Simulations
 - **Project Manager Simulation**: Sprint planning, retrospective facilitation, and project coordination
@@ -165,6 +168,28 @@ kandil docs generate
 kandil test generate src/main.rs
 kandil test execute
 ```
+
+### Quick Development Commands
+Kandil Code includes powerful slash commands for rapid development tasks:
+
+```bash
+# Start the interactive shell
+kandil chat
+
+# Refactor code
+/refactor src/main.rs
+
+# Generate tests
+/test src/main.rs
+
+# Analyze and fix issues
+/fix
+
+# Review code
+/review
+```
+
+These commands provide quick access to common development tasks with AI assistance.
 
 ## Architecture
 
@@ -320,6 +345,39 @@ Kandil Code runs on multiple platforms with consistent experience:
 - **Windows**: x86_64 (Windows 10/11)
 
 All platforms support the same feature set through a unified codebase.
+
+## Performance & System Diagnostics
+
+Kandil Code includes built-in tools for performance evaluation and system health:
+
+### Model Benchmarking
+```bash
+# Benchmark your current model across different runtimes
+kandil model benchmark
+
+# Benchmark with specific output format
+kandil model benchmark --format json
+
+# Benchmark all available runtimes
+kandil model benchmark --all-runtimes
+```
+
+### System Diagnostics
+```bash
+# Run comprehensive system diagnostics
+kandil doctor
+
+# Run platform-specific diagnostics
+kandil windows doctor  # On Windows
+kandil macos doctor    # On macOS
+kandil linux doctor    # On Linux
+```
+
+These tools help optimize performance and diagnose system issues.
+
+## Quick Start
+
+For a comprehensive guide on getting started with Kandil Code, see our [Quick Start Guide](docs/quick_start.md).
 
 ## Contributing
 

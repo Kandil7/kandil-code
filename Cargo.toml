@@ -1,17 +1,26 @@
 [package]
 name = "kandil_code"
-version = "0.1.0"
+version = "2.0.0"
 edition = "2021"
-description = "Intelligent development platform (CLI + TUI + Multi-Agent System)"
+description = "Intelligent development platform (CLI + TUI + Multi-Agent System) with cross-platform AI model benchmarking and system diagnostics"
 authors = ["Kandil7 <your-email@example.com>"]
 license = "MIT"
 repository = "https://github.com/Kandil7/kandil_code"
+homepage = "https://github.com/Kandil7/kandil_code"
+documentation = "https://github.com/Kandil7/kandil_code/blob/main/README.md"
+readme = "README.md"
+keywords = ["ai", "cli", "development", "benchmarking", "productivity"]
+categories = ["development-tools", "command-line-utilities"]
 include = [
     "src/**",
     "templates/**",
     "Cargo.toml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/**",
+    "release.toml",
+    "scripts/**",
+    "deny.toml"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

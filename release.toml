@@ -1,0 +1,83 @@
+# Release Configuration for Kandil Code
+
+# This configuration defines the build targets and release artifacts for Kandil Code
+
+[package]
+name = "kandil_code"
+version = "2.0.0"  # This should match the version in Cargo.toml
+description = "Intelligent development platform (CLI + TUI + Multi-Agent System)"
+repository = "https://github.com/Kandil7/kandil_code"
+
+# Desktop Build Targets
+[targets.desktop]
+x86_64-unknown-linux-gnu = { enabled = true, features = ["default"] }
+aarch64-unknown-linux-gnu = { enabled = true, features = ["default"] }
+x86_64-apple-darwin = { enabled = true, features = ["default"] }
+aarch64-apple-darwin = { enabled = true, features = ["default"] }
+x86_64-pc-windows-msvc = { enabled = true, features = ["default"] }
+aarch64-pc-windows-msvc = { enabled = true, features = ["default"] }
+
+# Mobile Build Targets (for library distribution)
+[targets.mobile]
+aarch64-linux-android = { enabled = true, crate-type = ["cdylib", "staticlib"] }
+armv7-linux-androideabi = { enabled = true, crate-type = ["cdylib", "staticlib"] }
+x86_64-linux-android = { enabled = true, crate-type = ["cdylib", "staticlib"] }
+i686-linux-android = { enabled = true, crate-type = ["cdylib", "staticlib"] }
+
+# Feature flags for different builds
+[features]
+default = ["tui"]
+tui = ["ratatui", "crossterm", "tui-textarea", "syntect"]
+gpu-rendering = ["wgpu", "pollster"]
+mobile = []  # Additional mobile-specific features if needed
+
+# Release artifacts configuration
+[artifacts]
+desktop = [
+    "kandil-{target}.tar.gz",
+    "kandil-{target}.zip", 
+    "kandil-{target}.sha256"
+]
+mobile = [
+    "mobile-kandil-{target}.tar.gz"
+]
+checksum_file = "SHA256SUMS"
+
+# Build settings
+[build]
+strip_symbols = true
+optimize_for_size = false
+lto = true
+
+# Release notes template
+[release-notes]
+template = """
+## Kandil Code v{version}
+
+Release for version {version} with cross-platform support.
+
+### New Features
+- Cross-platform benchmarking capabilities
+- System diagnostics with `doctor` command
+- Enhanced slash commands: /ref, /test, /fix, /review
+- Multi-platform build support
+
+### Platforms Supported
+- Linux: x86_64, aarch64
+- macOS: x86_64, aarch64  
+- Windows: x86_64, aarch64
+- Mobile: Android (ARM64, ARMv7, x86_64, x86)
+
+### Security Updates
+- Dependency vulnerability scanning
+- License compliance checking
+- Code signing verification (where applicable)
+
+For full details, see the changelog and documentation.
+"""
+
+# Signing configuration (placeholder)
+[signing]
+enabled = false
+key = ""
+provider = "gpg"  # or "sigstore", etc.
