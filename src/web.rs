@@ -1,139 +1,132 @@
-use crate::{enhanced_ui::context::ProjectContext, pwa};
-use anyhow::Result;
-use axum::{
-    extract::State,
-    response::{
-        sse::{Event, KeepAlive, Sse},
-        Html, IntoResponse,
-    },
-    routing::get,
-    Json, Router,
-};
-use serde::Serialize;
-use std::{convert::Infallible, net::SocketAddr, time::Duration};
-use tokio::{net::TcpListener, sync::broadcast};
-use tokio_stream::{wrappers::BroadcastStream, StreamExt};
+use crate::enhanced_ui::adaptive::AdaptiveUI;
+use crate::enhanced_ui::ide_sync::IdeSyncBridge;
+use crate::web::dashboard::{launch_web_dashboard, WebCompanionDashboard};
+use axum::Router;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-#[derive(Clone)]
-struct WebState {
-    tx: broadcast::Sender<String>,
+// Main web interface for the Kandil Code platform
+pub struct WebInterface {
+    pub dashboard: Option<Arc<RwLock<WebCompanionDashboard>>>,
+    pub server_addr: String,
+    pub is_running: bool,
 }
 
-#[derive(Serialize)]
-struct HealthPayload {
-    status: &'static str,
-}
-
-pub async fn start(address: &str) -> Result<()> {
-    let addr: SocketAddr = address
-        .parse()
-        .unwrap_or_else(|_| "127.0.0.1:7878".parse().expect("valid default addr"));
-    let (tx, _) = broadcast::channel(128);
-    let state = WebState { tx: tx.clone() };
-
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(5));
-        loop {
-            interval.tick().await;
-            let context = ProjectContext::detect();
-            if let Ok(payload) = serde_json::to_string(&context) {
-                let _ = tx.send(payload);
-            }
+impl WebInterface {
+    pub fn new(addr: &str) -> Self {
+        Self {
+            dashboard: None,
+            server_addr: addr.to_string(),
+            is_running: false,
         }
-    });
+    }
 
-    let app = Router::new()
-        .route("/", get(index))
-        .route("/pwa", get(pwa_shell))
-        .route("/sw.js", get(service_worker))
-        .route("/manifest.webmanifest", get(manifest))
-        .route("/health", get(health))
-        .route("/context", get(context_endpoint))
-        .route("/events", get(events_handler))
-        .with_state(state);
+    pub async fn start_dashboard(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Extract port from address (assuming format like "127.0.0.1:7878")
+        let port = self.server_addr
+            .split(':')
+            .last()
+            .unwrap_or("7878")
+            .parse()
+            .unwrap_or(7878);
 
-    let listener = TcpListener::bind(addr).await?;
-    let bound_addr = listener.local_addr()?;
-    println!("🌐 Web Companion available at http://{}", bound_addr);
-    axum::serve(listener, app).await?;
+        let dashboard = launch_web_dashboard(port).await;
+        self.dashboard = Some(Arc::new(RwLock::new(dashboard)));
+        self.is_running = true;
+
+        // Start the server in a background task
+        let dashboard_arc = self.dashboard.as_ref().unwrap().clone();
+        tokio::spawn(async move {
+            let dashboard = dashboard_arc.read().await;
+            if let Err(e) = dashboard.run().await {
+                eprintln!("Web dashboard error: {}", e);
+            }
+        });
+
+        Ok(())
+    }
+
+    pub async fn update_dashboard_session<F>(&self, update_fn: F) -> Result<(), Box<dyn std::error::Error>>
+    where
+        F: FnOnce(&mut crate::web::dashboard::CliSessionState) + Send + 'static,
+    {
+        if let Some(dashboard) = &self.dashboard {
+            let db = dashboard.read().await;
+            db.update_session(update_fn).await;
+        }
+        Ok(())
+    }
+
+    pub async fn add_command_to_dashboard(
+        &self,
+        command: &str,
+        result: &str,
+        duration_ms: u64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(dashboard) = &self.dashboard {
+            let db = dashboard.read().await;
+            db.add_command(command, result, duration_ms).await;
+        }
+        Ok(())
+    }
+
+    pub async fn add_ai_interaction_to_dashboard(
+        &self,
+        query: &str,
+        response: &str,
+        model: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(dashboard) = &self.dashboard {
+            let db = dashboard.read().await;
+            db.add_ai_interaction(query, response, model).await;
+        }
+        Ok(())
+    }
+}
+
+// Start the web companion server
+pub async fn start(address: &str) -> Result<(), Box<dyn std::error::Error>> {
+    println!("🌐 Starting Kandil Code Web Companion at http://{}", address);
+
+    let mut web_interface = WebInterface::new(address);
+    web_interface.start_dashboard().await?;
+    
+    // Keep the server running
+    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+    println!(" shutting down gracefully...");
+    
     Ok(())
 }
 
-async fn index() -> Html<&'static str> {
-    Html(
-        r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Kandil Companion</title>
-    <style>
-        body { font-family: system-ui, sans-serif; margin: 2rem; color: #111; }
-        pre { background: #111; color: #0f0; padding: 1rem; min-height: 200px; }
-        header { display:flex; justify-content:space-between; align-items:center; }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Kandil Companion</h1>
-        <span id="status">connecting…</span>
-    </header>
-    <pre id="stream">{ }</pre>
-    <script>
-        const status = document.getElementById("status");
-        const stream = document.getElementById("stream");
-        const source = new EventSource("/events");
-        source.onopen = () => status.textContent = "live";
-        source.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                stream.textContent = JSON.stringify(data, null, 2);
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        source.onerror = () => status.textContent = "reconnecting…";
-    </script>
-</body>
-</html>"#,
-    )
+// Integration with the main CLI system
+pub async fn update_web_session(
+    web_interface: Option<&WebInterface>,
+    update_fn: impl FnOnce(&mut crate::web::dashboard::CliSessionState) + Send + 'static,
+) {
+    if let Some(web) = web_interface {
+        let _ = web.update_dashboard_session(update_fn).await;
+    }
 }
 
-async fn pwa_shell() -> Html<&'static str> {
-    Html(pwa::INDEX_HTML)
+pub async fn log_command_to_web(
+    web_interface: Option<&WebInterface>,
+    command: &str,
+    result: &str,
+    duration_ms: u64,
+) {
+    if let Some(web) = web_interface {
+        let _ = web.add_command_to_dashboard(command, result, duration_ms).await;
+    }
 }
 
-async fn manifest() -> impl IntoResponse {
-    (
-        [("content-type", "application/manifest+json")],
-        pwa::MANIFEST,
-    )
-}
-
-async fn service_worker() -> impl IntoResponse {
-    (
-        [("content-type", "application/javascript")],
-        pwa::SERVICE_WORKER,
-    )
-}
-
-async fn health() -> Json<HealthPayload> {
-    Json(HealthPayload { status: "ok" })
-}
-
-async fn context_endpoint() -> Json<ProjectContext> {
-    Json(ProjectContext::detect())
-}
-
-async fn events_handler(
-    State(state): State<WebState>,
-) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
-    let stream = BroadcastStream::new(state.tx.subscribe()).filter_map(|msg| match msg {
-        Ok(payload) => Some(Ok(Event::default().event("context").data(payload))),
-        Err(_) => None,
-    });
-    Sse::new(stream).keep_alive(
-        KeepAlive::new()
-            .interval(Duration::from_secs(10))
-            .text("ping"),
-    )
+pub async fn log_ai_interaction_to_web(
+    web_interface: Option<&WebInterface>,
+    query: &str,
+    response: &str,
+    model: &str,
+) {
+    if let Some(web) = web_interface {
+        let _ = web.add_ai_interaction_to_dashboard(query, response, model).await;
+    }
 }

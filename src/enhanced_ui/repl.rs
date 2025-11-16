@@ -151,8 +151,37 @@ pub async fn run_repl() -> Result<()> {
         mobile_bridge.sync_jobs(&job_snapshot);
         let updated_profile = PersonaProfile::from_history(&context.recent_commands);
         if updated_profile.persona != persona_profile.persona {
-            adaptive_ui.announce("persona", updated_profile.greeting);
+            adaptive_ui.announce("persona", &updated_profile.greeting);
             persona_profile = updated_profile;
+        } else {
+            // Update the current profile with the new command
+            let mut temp_profile = persona_profile.clone();
+            if let Some(last_command) = context.recent_commands.back() {
+                temp_profile.update_with_command(last_command);
+            }
+            persona_profile = temp_profile;
+        }
+
+        // Adjust behavior based on persona preferences
+        match persona_profile.preferences.project_focus {
+            crate::enhanced_ui::persona::ProjectFocus::Frontend => {
+                if persona_profile.confidence > 0.7 {
+                    // Provide frontend-specific hints or auto-completions
+                }
+            }
+            crate::enhanced_ui::persona::ProjectFocus::Backend => {
+                if persona_profile.confidence > 0.7 {
+                    // Provide backend-specific hints
+                }
+            }
+            crate::enhanced_ui::persona::ProjectFocus::Testing => {
+                if persona_profile.confidence > 0.7 && predictive_executor.should_prefetch() {
+                    // Prefetch testing resources more aggressively
+                    predictive_executor.prefetch("/test");
+                    predictive_executor.mark_prefetch_time();
+                }
+            }
+            _ => {}
         }
     }
 
@@ -502,6 +531,7 @@ fn print_help() {
     println!("  {:<10} {}", "/clear", "Clear the terminal screen");
     println!("  {:<10} {}", "/reset", "Reset the command context");
     println!("  {:<10} {}", "/thoughts", "Display recent thoughts from AI reasoning");
+    println!("\nKandil Shell adapts to your development persona and provides contextual assistance.");
     println!("Use standard shell commands without '/' prefix.");
 }
 
