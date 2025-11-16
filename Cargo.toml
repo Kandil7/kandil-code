@@ -85,6 +85,7 @@ walkdir = "2.5"
 ring = "0.17"
 wgpu = { version = "0.19", optional = true }
 pollster = { version = "0.3", optional = true }
+rayon = { version = "1.5", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
@@ -94,7 +95,7 @@ predicates = "3.0"
 [features]
 default = ["tui"]
 tui = ["ratatui", "crossterm", "tui-textarea", "syntect"]
-gpu-rendering = ["wgpu", "pollster"]
+gpu-rendering = ["wgpu", "pollster", "rayon"]
 wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "web-sys"]
 
 [[bin]]
