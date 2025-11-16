@@ -1,9 +1,10 @@
 use crate::adapters::{edge, linux, macos, mobile, windows};
-use crate::benchmark::CrossPlatformBenchmark;
+use crate::benchmark::{BenchmarkOptions, CrossPlatformBenchmark};
 use crate::core::adapters::ai::factory::AIProviderFactory;
 use crate::core::hardware::{detect_hardware, PlatformKind};
 use crate::core::prompting::{PromptIntent, PromptRouter};
 use crate::enhanced_ui;
+use crate::pwa;
 use crate::security::mobile as mobile_security;
 use crate::security::platform::PlatformHardener;
 use crate::utils::config::{Config, SecureKey};
@@ -12,10 +13,11 @@ use crate::utils::project_manager::ProjectManager;
 use crate::utils::refactoring::{RefactorEngine, RefactorParams};
 use crate::utils::templates::TemplateEngine;
 use crate::utils::test_generation::TestGenerator;
+use crate::web;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use futures_util::stream::StreamExt;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use tokio::{fs, io::AsyncWriteExt, task};
 
 #[derive(Parser)]
@@ -110,6 +112,17 @@ pub enum Commands {
     Mobile {
         #[command(subcommand)]
         sub: MobileSub,
+    },
+    /// Export PWA assets for offline installs
+    Pwa {
+        #[arg(long, default_value = "dist/pwa")]
+        output: PathBuf,
+    },
+    /// Launch the Axum-based web companion dashboard
+    Web {
+        /// Address to bind, e.g. 127.0.0.1:7878
+        #[arg(short, long, default_value = "127.0.0.1:7878")]
+        address: String,
     },
 }
 
@@ -733,6 +746,12 @@ pub enum LocalModelSub {
         /// Output format
         #[arg(long, default_value = "table")]
         format: String,
+        /// Force a specific runtime (ollama, lmstudio, gpt4all, foundry, default)
+        #[arg(long)]
+        runtime: Option<String>,
+        /// Benchmark every detected runtime
+        #[arg(long)]
+        all_runtimes: bool,
     },
     /// Use a local model and persist selection
     Use {
@@ -741,6 +760,13 @@ pub enum LocalModelSub {
     },
     /// Show local model system status
     Status,
+}
+
+struct BenchmarkCliOptions {
+    model: Option<String>,
+    format: String,
+    runtime: Option<String>,
+    all_runtimes: bool,
 }
 
 #[derive(Subcommand)]
@@ -805,6 +831,8 @@ pub async fn run(cli: Cli) -> Result<()> {
         Some(Commands::Macos { sub }) => handle_macos(sub).await?,
         Some(Commands::Linux { sub }) => handle_linux(sub).await?,
         Some(Commands::Mobile { sub }) => handle_mobile(sub).await?,
+        Some(Commands::Pwa { output }) => handle_pwa(output).await?,
+        Some(Commands::Web { address }) => web::start(&address).await?,
         None => {
             println!("Kandil Code - Intelligent Development Platform");
             println!("Use --help for commands");
@@ -839,8 +867,25 @@ async fn chat(message: String) -> Result<()> {
 
     let config = Config::load()?;
     let factory = AIProviderFactory::new(config.clone());
-    let ai = Arc::new(factory.create_ai(&config.ai_provider, &config.ai_model)?);
+    
+    // Use prompt router to intelligently route the message
+    let router = PromptRouter::new();
+    let routed = router.route_message(
+        &message,
+        &config.ai_provider,
+        &config.ai_model,
+    );
+    
+    // Create AI instance based on routed prompt
+    let ai = Arc::new(factory.create_ai(&routed.provider, &routed.model)?);
     let tracked_ai = crate::core::adapters::TrackedAI::new(ai.clone(), factory.get_cost_tracker());
+
+    // Show routing info if it differs from default or if verbose
+    if routed.provider != config.ai_provider || routed.model != config.ai_model {
+        println!("🎯 Routed to {} ({}) for {:?} intent", 
+            routed.provider, routed.model, routed.intent);
+        println!("   {}", routed.explanation);
+    }
 
     let response = tracked_ai.chat(&message).await?;
     println!("{}", response);
@@ -895,7 +940,25 @@ async fn create_project(template: &str, name: &str) -> Result<()> {
 async fn handle_agent(sub: AgentSub) -> Result<()> {
     let config = Config::load()?;
     let factory = AIProviderFactory::new(config.clone());
-    let ai = Arc::new(factory.create_ai(&config.ai_provider, &config.ai_model)?);
+    let router = PromptRouter::new();
+    
+    // Route based on agent type
+    let (intent, task_description) = match &sub {
+        AgentSub::Requirements { description } => (PromptIntent::Planning, description.clone()),
+        AgentSub::Design { requirements } => (PromptIntent::Architecture, requirements.clone()),
+        AgentSub::Code { design_path, .. } => (PromptIntent::Coding, format!("Generate code from {}", design_path)),
+        AgentSub::Test { .. } => (PromptIntent::Testing, "Generate tests".to_string()),
+        AgentSub::Documentation { .. } => (PromptIntent::Analysis, "Generate documentation".to_string()),
+        _ => (PromptIntent::Conversation, "Agent task".to_string()),
+    };
+    
+    let routed = router.route_for_intent(intent, &config.ai_provider, &config.ai_model);
+    let ai = Arc::new(factory.create_ai(&routed.provider, &routed.model)?);
+    
+    if routed.provider != config.ai_provider || routed.model != config.ai_model {
+        println!("🎯 Agent using {} ({}) for {:?} intent", 
+            routed.provider, routed.model, routed.intent);
+    }
 
     match sub {
         AgentSub::Requirements { description } => {
@@ -1795,13 +1858,19 @@ async fn handle_local_model(sub: LocalModelSub) -> Result<()> {
                 println!("❌ Model {} not found at {:?}", model, path);
             }
         }
-        LocalModelSub::Benchmark { model, format } => {
-            let model_name = model.unwrap_or_else(|| {
-                let config = crate::config::layered::Config::load().unwrap_or_default();
-                config.model.name
-            });
-
-            benchmark_model(&model_name, &format).await?;
+        LocalModelSub::Benchmark {
+            model,
+            format,
+            runtime,
+            all_runtimes,
+        } => {
+            let opts = BenchmarkCliOptions {
+                model,
+                format,
+                runtime,
+                all_runtimes,
+            };
+            benchmark_model(opts).await?;
         }
         LocalModelSub::Use { model } => {
             // This would update the user's config file to set this as default
@@ -1948,27 +2017,70 @@ async fn download_model(
     Ok(())
 }
 
-async fn benchmark_model(name: &str, format: &str) -> Result<()> {
+async fn benchmark_model(opts: BenchmarkCliOptions) -> Result<()> {
     let cfg = Config::load()?;
-    let factory = AIProviderFactory::new(cfg.clone());
-    let ai = Arc::new(factory.create_ai(&cfg.ai_provider, name)?);
-    let suite = CrossPlatformBenchmark::new();
-    let report = suite.run(ai).await?;
+    let model = opts.model.clone().unwrap_or_else(|| cfg.ai_model.clone());
 
-    match format {
+    let suite = CrossPlatformBenchmark::new();
+
+    let report = suite
+        .run(BenchmarkOptions {
+            model: model.clone(),
+            default_provider: cfg.ai_provider.clone(),
+            runtime: opts.runtime.clone(),
+            include_all_runtimes: opts.all_runtimes,
+            prompts: None,
+        })
+        .await?;
+
+    match opts.format.to_lowercase().as_str() {
         "json" => {
             println!("{}", serde_json::to_string_pretty(&report)?);
         }
         _ => {
-            println!("🔍 Benchmark for {} ({})", report.model, report.provider);
-            println!("Average latency: {} ms", report.average_latency_ms);
-            println!("Tokens generated: {}", report.total_tokens);
-            println!("\nPrompt Results:");
-            for sample in report.samples {
+            println!("📊 Cross-Platform Benchmark");
+            println!("Model: {}", report.model);
+            println!(
+                "Hardware: {}GB RAM ({}GB available) • Disk free: {}GB • Platform: {:?}",
+                report.hardware.total_ram_gb,
+                report.hardware.available_ram_gb,
+                report.hardware.free_disk_gb,
+                report.hardware.platform
+            );
+            if let Some(gpu) = &report.hardware.gpu {
+                println!("GPU: {} {} ({}GB)", gpu.brand, gpu.model, gpu.memory_gb);
+            } else {
+                println!("GPU: not detected");
+            }
+            println!("Prompts: {}", report.prompts.len());
+            println!("Timestamp: {}", report.timestamp);
+
+            for runtime in &report.results {
+                println!("\nRuntime: {}", runtime.runtime);
+                println!("  Provider: {}", runtime.provider);
+                println!("  Avg latency: {} ms", runtime.average_latency_ms);
                 println!(
-                    "  • {} → {} ms, {} tokens",
-                    sample.prompt, sample.latency_ms, sample.output_tokens
+                    "  Avg throughput: {} tokens/s",
+                    runtime.average_tokens_per_sec
                 );
+                println!("  Memory peak: {} MB", runtime.memory_peak_mb);
+                if let Some(impact) = runtime.battery_impact {
+                    println!("  Battery impact: {:.1}%/min", impact);
+                }
+                println!("  Samples:");
+                for sample in &runtime.samples {
+                    println!(
+                        "    • {} → {} ms, {} tokens",
+                        sample.prompt, sample.latency_ms, sample.output_tokens
+                    );
+                }
+            }
+
+            if !report.warnings.is_empty() {
+                println!("\nWarnings:");
+                for warning in &report.warnings {
+                    println!("  - {}", warning);
+                }
             }
         }
     }
@@ -1992,6 +2104,12 @@ async fn handle_auth(sub: AuthSub) -> Result<()> {
             println!("API key saved for {}", provider);
         }
     }
+    Ok(())
+}
+
+async fn handle_pwa(output: PathBuf) -> Result<()> {
+    pwa::write_assets(&output)?;
+    println!("📦 PWA assets exported to {}", output.display());
     Ok(())
 }
 

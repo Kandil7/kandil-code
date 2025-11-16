@@ -1,9 +1,8 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use ring::aead::{self, Aad, LessSafeKey, UnboundKey, NONCE_LEN};
 use ring::rand::{SecureRandom, SystemRandom};
 use std::fs;
-use std::path::{Path, PathBuf};
-use uuid::Uuid;
+use std::path::Path;
 
 pub fn enforce_ios_bundle_security(bundle: &Path) -> Result<()> {
     ensure_security_files(
@@ -90,7 +89,7 @@ fn seal_models(bundle: &Path, key: &[u8]) -> Result<()> {
         let path = entry.path();
         if let Some(ext) = path.extension() {
             if ext == "gguf" {
-                let per_file_nonce = increment_nonce(nonce, counter);
+                let per_file_nonce = increment_nonce(&nonce, counter);
                 encrypt_file(&path, &sealing_key, per_file_nonce)?;
                 counter = counter.saturating_add(1);
             }
@@ -99,7 +98,7 @@ fn seal_models(bundle: &Path, key: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn increment_nonce(base: aead::Nonce, offset: u64) -> aead::Nonce {
+fn increment_nonce(base: &aead::Nonce, offset: u64) -> aead::Nonce {
     let mut bytes = base.as_ref().to_vec();
     let mut carry = offset;
     for byte in bytes.iter_mut().rev() {

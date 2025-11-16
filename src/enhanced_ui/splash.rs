@@ -298,6 +298,14 @@ impl JobTracker {
         }
     }
 
+    pub fn auto_complete_elapsed(&mut self, threshold: Duration) {
+        for job in &mut self.jobs {
+            if !job.completed && job.started_at.elapsed() >= threshold {
+                job.completed = true;
+            }
+        }
+    }
+
     pub fn render_jobs(&self) -> String {
         if self.jobs.is_empty() {
             return "No active jobs.".to_string();
@@ -316,6 +324,17 @@ impl JobTracker {
             .collect::<Vec<String>>()
             .join("\n")
     }
+
+    pub fn snapshot(&self) -> Vec<JobSnapshot> {
+        self.jobs
+            .iter()
+            .map(|job| JobSnapshot {
+                description: job.description.clone(),
+                completed: job.completed,
+                duration_secs: job.started_at.elapsed().as_secs_f32(),
+            })
+            .collect()
+    }
 }
 
 #[derive(Clone)]
@@ -323,4 +342,11 @@ struct JobStatus {
     description: String,
     started_at: Instant,
     completed: bool,
+}
+
+#[derive(Clone)]
+pub struct JobSnapshot {
+    pub description: String,
+    pub completed: bool,
+    pub duration_secs: f32,
 }

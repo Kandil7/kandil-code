@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
@@ -7,7 +8,7 @@ use std::{
 };
 use walkdir::WalkDir;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ProjectContext {
     pub project_type: ProjectType,
     pub git_state: GitState,
@@ -63,7 +64,7 @@ impl ProjectContext {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GitState {
     pub branch: Option<String>,
     pub staged_files: Vec<String>,
@@ -84,7 +85,7 @@ impl Default for GitState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum ProjectType {
     Rust,
     Node,

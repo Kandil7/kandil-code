@@ -15,13 +15,17 @@ mod config;
 mod core;
 mod enhanced_ui;
 mod errors;
+mod mobile;
 mod models;
 mod monitoring;
+mod pwa;
 mod security;
 mod shutdown;
 #[cfg(feature = "tui")]
 mod tui;
 mod utils;
+mod wasm;
+mod web;
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -1,15 +1,19 @@
-use crate::enhanced_ui::{
-    adaptive::AdaptiveUI,
-    predictive::PredictiveExecutor,
-    smart_prompt::SmartPrompt,
-    splash::{self, CommandContext, SplashResult},
-    terminal::KandilTerminal,
-    thought::{ThoughtFragment, ThoughtStreamer},
+use crate::{
+    enhanced_ui::{
+        adaptive::AdaptiveUI,
+        ide_sync::IdeSyncBridge,
+        input::{InputMethod, UniversalInput},
+        persona::PersonaProfile,
+        predictive::PredictiveExecutor,
+        smart_prompt::SmartPrompt,
+        splash::{self, CommandContext, SplashResult},
+        terminal::KandilTerminal,
+        thought::{ThoughtFragment, ThoughtStreamer},
+    },
+    mobile::MobileBridge,
 };
 use anyhow::{anyhow, Result};
-use rustyline::{error::ReadlineError, DefaultEditor};
-use std::collections::VecDeque;
-use std::sync::Arc;
+use std::{collections::VecDeque, env, sync::Arc, time::Duration};
 
 #[derive(Default)]
 pub struct KandilPrompt {
@@ -40,19 +44,33 @@ pub async fn run_repl() -> Result<()> {
     let terminal = Arc::new(KandilTerminal::new()?);
     let mut context = CommandContext::new(terminal.clone());
     let mut prompt = KandilPrompt::default();
-    let mut editor = DefaultEditor::new()?;
+    let mut universal_input = UniversalInput::new()?;
     let adaptive_ui = AdaptiveUI::from_system();
+    let ide_sync = IdeSyncBridge::new(env::current_dir()?);
+    ide_sync.launch(adaptive_ui.clone())?;
+    let mobile_bridge = MobileBridge::new()?;
     let mut predictive_executor = PredictiveExecutor::new();
     let thought_streamer = ThoughtStreamer::new();
+    let mut persona_profile = PersonaProfile::from_history(&context.recent_commands);
 
     println!("Kandil Shell initialized. Type /help for splash commands.");
 
     loop {
-        let input = match editor.readline(&prompt.render()) {
-            Ok(line) => line,
-            Err(ReadlineError::Interrupted) => continue,
-            Err(ReadlineError::Eof) => break,
-            Err(err) => return Err(anyhow!("Readline error: {}", err)),
+        let input = if let Some(remote) = mobile_bridge.try_voice_command()? {
+            adaptive_ui.announce("status", "📱 Remote command received");
+            remote
+        } else {
+            match universal_input.read(&prompt.render())? {
+                InputMethod::Text(text) => text,
+                InputMethod::Voice(transcript) => {
+                    adaptive_ui.announce("status", "🎙️ Voice input detected");
+                    transcript
+                }
+                InputMethod::Image(description) => {
+                    adaptive_ui.announce("status", "🖼️ Image input routed to /ask");
+                    format!("/ask {}", description)
+                }
+            }
         };
 
         let trimmed = input.trim();
@@ -64,7 +82,7 @@ pub async fn run_repl() -> Result<()> {
             break;
         }
 
-        editor.add_history_entry(trimmed)?;
+        universal_input.add_history(trimmed)?;
 
         if handle_special_input(trimmed, &terminal, &mut context).await? {
             continue;
@@ -88,10 +106,20 @@ pub async fn run_repl() -> Result<()> {
 
         context.remember_command(trimmed);
         context.refresh_project_context();
+        context
+            .job_tracker
+            .auto_complete_elapsed(Duration::from_secs(45));
+        let job_snapshot = context.job_tracker.snapshot();
         predictive_executor.observe(trimmed);
         show_contextual_hint(&context, &adaptive_ui);
         if let Some(hint) = predictive_executor.predict_hint() {
             println!("🔮 Prediction: {}", hint);
+        }
+        mobile_bridge.sync_jobs(&job_snapshot);
+        let updated_profile = PersonaProfile::from_history(&context.recent_commands);
+        if updated_profile.persona != persona_profile.persona {
+            adaptive_ui.announce("persona", updated_profile.greeting);
+            persona_profile = updated_profile;
         }
     }
 

@@ -2,6 +2,8 @@
 //!
 //! Main application state and event loop
 
+use crate::enhanced_ui::gpu_render::{should_use_gpu, GpuRenderer};
+use crate::enhanced_ui::terminal::KandilTerminal;
 use crate::tui::events::{AppEvent, EventHandler};
 use crate::tui::widgets::{AIChatWidget, CodeViewer, FileExplorer};
 use crate::utils::code_analysis::CodeAnalyzer;
@@ -16,6 +18,7 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub enum UIState {
@@ -31,6 +34,9 @@ pub struct StudioApp {
     pub ai_chat: AIChatWidget,
     pub code_analyzer: CodeAnalyzer,
     pub should_quit: bool,
+    #[cfg(feature = "gpu-rendering")]
+    gpu_renderer: Option<GpuRenderer>,
+    terminal: Arc<KandilTerminal>,
 }
 
 impl StudioApp {
@@ -45,6 +51,25 @@ impl StudioApp {
         let code_content =
             "// Sample code content\nfn main() {\n    println!(\"Hello, Kandil!\");\n}";
 
+        let terminal = Arc::new(KandilTerminal::new()?);
+        
+        // Initialize GPU renderer if available
+        #[cfg(feature = "gpu-rendering")]
+        let gpu_renderer = if should_use_gpu() {
+            match GpuRenderer::new() {
+                Ok(renderer) => {
+                    println!("🚀 GPU rendering enabled");
+                    Some(renderer)
+                }
+                Err(e) => {
+                    eprintln!("⚠️  GPU rendering unavailable: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         Ok(Self {
             ui_state: UIState::FileExplorer,
             file_explorer: FileExplorer::new(files),
@@ -52,6 +77,9 @@ impl StudioApp {
             ai_chat: AIChatWidget::new(),
             code_analyzer: CodeAnalyzer::new()?,
             should_quit: false,
+            #[cfg(feature = "gpu-rendering")]
+            gpu_renderer,
+            terminal,
         })
     }
 
@@ -70,6 +98,14 @@ impl StudioApp {
         // Main loop
         loop {
             terminal.draw(|f| self.ui(f))?;
+
+            // GPU rendering (if enabled)
+            #[cfg(feature = "gpu-rendering")]
+            if let Some(ref mut gpu) = self.gpu_renderer {
+                if let Err(e) = gpu.render_frame(&self.terminal).await {
+                    eprintln!("GPU render error: {}", e);
+                }
+            }
 
             match events.next().await? {
                 AppEvent::Tick => {}

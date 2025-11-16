@@ -96,6 +96,28 @@ impl KandilTerminal {
         Ok(())
     }
 
+    pub async fn capture_frame(&self) -> Result<TerminalFrame> {
+        // Capture current terminal state for GPU rendering
+        // This is a simplified version - in a full implementation,
+        // this would capture the actual visible terminal buffer
+        let log = self.execution_log.read().await;
+        let lines: Vec<String> = log
+            .iter()
+            .take(100) // Limit to last 100 commands for performance
+            .map(|record| format!("[{}] {}", record.timestamp.format("%H:%M:%S"), record.command))
+            .collect();
+        
+        Ok(TerminalFrame { lines })
+    }
+
+    /// Get visible terminal cells for GPU rendering
+    pub fn visible_cells(&self) -> Option<Vec<TerminalCell>> {
+        // For now, return None - this will be implemented when we have
+        // actual terminal buffer access
+        // Future: Return actual visible cells from terminal buffer
+        None
+    }
+
     fn parse_command(&self, raw: &str) -> Result<String> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
@@ -259,6 +281,21 @@ impl PermissionController {
             .iter()
             .any(|token| command.contains(token))
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct TerminalFrame {
+    pub lines: Vec<String>,
+}
+
+/// Represents a single terminal cell for GPU rendering
+#[derive(Debug, Clone)]
+pub struct TerminalCell {
+    pub character: char,
+    pub foreground: u32,
+    pub background: u32,
+    pub bold: bool,
+    pub italic: bool,
 }
 
 #[derive(Clone, Default)]
