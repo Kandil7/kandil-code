@@ -375,9 +375,11 @@ kandil linux doctor    # On Linux
 
 These tools help optimize performance and diagnose system issues.
 
-## Quick Start
+## Tutorials & Guides
 
-For a comprehensive guide on getting started with Kandil Code, see our [Quick Start Guide](docs/quick_start.md).
+- [Quick Start Guide](docs/tutorials/quick_start.md) - Get up and running in minutes
+- [Onboarding Tutorial](docs/tutorials/onboarding_tutorial.md) - Complete guide to core features
+- [Advanced Tutorials](docs/tutorials/advanced_tutorials.md) - Advanced workflows and capabilities
 
 ## Contributing
 
