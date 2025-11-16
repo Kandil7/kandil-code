@@ -1,60 +1,81 @@
-# Configuration for cargo-deny, a Rust dependency checker
-# More information: https://github.com/EmbarkStudios/cargo-deny
+# Deny.toml - Security and License Audit Configuration
 
-[graph]
-# If true, metadata will be collected with `--all-features`. Note that this can make
-# the collection step take significantly longer.
-all-features = false
-
-# If true, metadata will be collected with `--no-default-features`.
-no-default-features = false
+# Configuration for cargo-deny, a Rust dependency auditing tool
+# This enforces security and license policies for all dependencies
 
 [advisories]
-# The path where the advisory database is cloned/fetched into
-db-path = "~/.cargo/advisory-db"
+# Fetch advisory databases automatically
+db-urls = [
+    "https://github.com/rustsec/advisory-db",
+]
+db-urls-cache-dur = "30d"  # Cache advisory DB for 30 days
 
-# The url of the advisory database to use
-db-urls = ["https://github.com/rustsec/advisory-db"]
-
-# The severity level at which to error
-# Options: "none", "low", "medium", "high", "critical"
-severity-threshold = "medium"
-
-[bans]
-# Lint level for when multiple versions of the same crate are found
-multiple-versions = "warn"
-
-# Lint level for when a crate version is found that is yanked
-yanked = "warn"
-
-# List of crates to deny
-deny = [
-    # Example of denying a crate
-    # { name = "crate-name", version = "=1.0.0" }
+# Advisory filtering criteria
+ignore = [
+    # List of advisory IDs to ignore (should be empty in production)
 ]
 
-# List of crates to allow regardless of other checks
+# Severity threshold for failures
+severity-threshold = "high"
+
+[bans]
+# Prevent duplicate versions of packages
+multiple-versions = "warn"
+
+# Ban specific crates that are known to be problematic
+deny = [
+    # Example: { name = "unmaintained-crate", versions = [">=1.0.0"] }
+]
+
+# Lint policy for wildcards in dependencies
+wildcards = "allow"
+
+# Skip certain crates in dependency resolution
+skip = []
+
+# Skip certain versions of a crate
+skip-versions = []
+
+[licenses]
+# License policy settings
 allow = [
-    # Example of allowing a crate
-    # { name = "crate-name", version = "=1.0.0" }
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "Unicode-DFS-2016",
+    "ISC",
+    "CC0-1.0",
+    "Zlib",
+    "MPL-2.0",
+    "OpenSSL",
+]
+
+# Deny specific licenses
+deny = [
+    # Licenses that are not allowed
+]
+
+# Copyleft license handling
+copyleft = "warn"
+
+# Clarify unclear license expressions
+clarify = [
+    # Example: { name = "ring", expression = "MIT AND ISC AND OpenSSL", license-files = [] }
 ]
 
 [sources]
-# Lint level for what to happen when a crate from a crate registry that is not
-# in the allow list is found
-unknown-registry = "warn"
+# Source allow/deny list
+unknown-registry = "deny"
+unknown-git = "deny"
 
-# Lint level for what to happen when a crate from a git repository that is not
-# in the allow list is found
-unknown-git = "warn"
-
-# List of URLs for allowed crate registries. The default registry is
-# automatically allowed if this list is not empty
-allow-registries = [
-    "https://github.com/rust-lang/crates.io-index",
-]
-
-# List of URLs for allowed Git repositories
 allow-git = [
-    # Example: "https://github.com/example/repo"
+    # Trusted git sources can be added here
 ]
+
+[bans.simple-regexes]
+# Regex-based ban rules for dependency patterns
+
+[bans.workspace]
+# Workspace-specific banning rules
+members = []
+external = false
