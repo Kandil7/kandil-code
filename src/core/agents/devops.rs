@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DevOpsSimulation {
     ai: Arc<KandilAI>,
     pub infra_templates: std::collections::HashMap<String, String>,

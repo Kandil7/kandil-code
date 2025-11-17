@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct EnhancedA11yAssistant {
     ai: Arc<KandilAI>,
     pub wcag_standards: HashMap<String, String>,
@@ -87,7 +87,7 @@ pub enum ImpactLevel {
     VeryHigh,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RtlSupportAssistant {
     ai: Arc<KandilAI>,
     pub rtl_languages: Vec<String>,

@@ -9,6 +9,7 @@ use crate::utils::config::SecureKey;
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use crate::monitoring::circuit_breaker::CircuitBreaker;
 
 pub mod factory;
 pub mod tracked;
@@ -67,15 +68,15 @@ pub trait AIProviderTrait: Send + Sync {
 
 use std::{env, sync::Arc};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct KandilAI {
     provider: AIProvider,
     model: String,
-    #[serde(skip)]
     client: Arc<Client>,
     base_url: String,
     /// Flag indicating if we should use hybrid (local fallback) mode
     use_hybrid_mode: bool,
+    breaker: Arc<CircuitBreaker>,
 }
 
 impl KandilAI {
@@ -102,12 +103,23 @@ impl KandilAI {
                 .unwrap_or_else(|_| "http://localhost:5001".to_string()),
         };
 
+        let threshold = std::env::var("KANDIL_CIRCUIT_THRESHOLD")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(3);
+        let timeout_ms = std::env::var("KANDIL_CIRCUIT_TIMEOUT_MS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(2000);
+        let breaker = Arc::new(CircuitBreaker::new(threshold, std::time::Duration::from_millis(timeout_ms)));
+
         Ok(Self {
             provider: provider_enum,
             model,
             client: Arc::new(Client::new()),
             base_url,
             use_hybrid_mode: true, // Default to hybrid mode
+            breaker,
         })
     }
 
@@ -148,8 +160,12 @@ impl KandilAI {
             }
         }
 
-        // Use the configured provider
-        match &self.provider {
+        if self.breaker.is_open() {
+            return Err(anyhow::anyhow!("Circuit breaker open for provider {}", self.provider_name()));
+        }
+
+        // Use the configured provider and update breaker
+        let result = match &self.provider {
             AIProvider::Ollama => self.ollama_chat(message).await,
             AIProvider::Claude => self.claude_chat(message).await,
             AIProvider::Qwen => self.qwen_chat(message).await,
@@ -157,7 +173,14 @@ impl KandilAI {
             AIProvider::LmStudio => self.lmstudio_chat(message).await,
             AIProvider::Gpt4All => self.gpt4all_chat(message).await,
             AIProvider::FoundryLocal => self.foundry_local_chat(message).await,
+        };
+
+        match &result {
+            Ok(_) => self.breaker.record_success(),
+            Err(_) => self.breaker.record_failure(),
         }
+
+        result
     }
 
     /// Enhanced chat with context management
@@ -439,6 +462,15 @@ impl KandilAI {
                 error_text
             ))
         }
+    }
+}
+
+impl std::fmt::Debug for KandilAI {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KandilAI")
+            .field("provider", &self.provider_name())
+            .field("model", &self.model)
+            .finish()
     }
 }
 

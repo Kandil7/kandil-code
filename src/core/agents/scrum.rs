@@ -71,7 +71,7 @@ pub struct Retrospective {
     pub lessons_learned: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ScrumSimulation {
     ai: Arc<KandilAI>,
     pub current_sprint: Option<Sprint>,

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct QualityAssuranceSystem {
     pub test_suite: TestSuite,
     pub code_quality_metrics: CodeQualityMetrics,

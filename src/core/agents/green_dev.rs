@@ -70,7 +70,7 @@ pub enum EnvironmentalImpact {
     VeryHigh,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct GreenDevAgent {
     ai: Arc<KandilAI>,
 }

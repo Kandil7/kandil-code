@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DocumentationGenerator {
     pub project_info: ProjectInfo,
     pub content_sections: Vec<DocumentationSection>,

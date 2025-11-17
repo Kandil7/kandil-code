@@ -11,7 +11,7 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ReleaseManager {
     pub version: String,
     pub release_notes: ReleaseNotes,

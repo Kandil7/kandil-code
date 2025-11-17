@@ -1,6 +1,6 @@
 [package]
 name = "kandil_code"
-version = "2.1.0"
+version = "2.1.1"
 edition = "2021"
 description = "Intelligent development platform (CLI + TUI + Multi-Agent System) with cross-platform AI model benchmarking, system diagnostics, and advanced development tools"
 authors = ["Kandil7"]
