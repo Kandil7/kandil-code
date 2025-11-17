@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Language-Rust-orange.svg)](https://www.rust-lang.org/)
-[![Version](https://img.shields.io/badge/Version-v2.1.0-blue)](https://github.com/Kandil7/kandil_code/releases)
+[![Version](https://img.shields.io/badge/Version-v2.1.1-blue)](https://github.com/Kandil7/kandil-code/releases)
 
 ## Table of Contents
 - [Overview](#overview)
@@ -83,18 +83,18 @@ This platform combines the efficiency of command-line interfaces with the intera
 Download the appropriate binary for your platform from the releases page:
 ```bash
 # Linux/macOS
-curl -L https://github.com/Kandil7/kandil_code/releases/download/v2.0.0/kandil_linux_x86_64.tar.gz | tar xz
+curl -L https://github.com/Kandil7/kandil-code/releases/download/v2.1.1/kandil_linux_x86_64.tar.gz | tar xz
 sudo mv kandil /usr/local/bin
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/Kandil7/kandil_code/releases/download/v2.0.0/kandil_windows_x64.zip" -OutFile "kandil.zip"
+Invoke-WebRequest -Uri "https://github.com/Kandil7/kandil-code/releases/download/v2.1.1/kandil_windows_x64.zip" -OutFile "kandil.zip"
 Expand-Archive -Path "kandil.zip" -DestinationPath .
 ```
 
 ### From Source
 ```bash
-git clone https://github.com/Kandil7/kandil_code.git
-cd kandil_code
+git clone https://github.com/Kandil7/kandil-code.git
+cd kandil-code
 cargo build --release
 ```
 
@@ -412,12 +412,12 @@ Releases are automated via GitHub Actions when a new tag is pushed in the format
 Kandil Code is available through multiple distribution channels:
 
 ### Binary Releases
-Download pre-built binaries from the [Releases page](https://github.com/Kandil7/kandil_code/releases).
+Download pre-built binaries from the [Releases page](https://github.com/Kandil7/kandil-code/releases).
 
 ### From Source
 ```bash
-git clone https://github.com/Kandil7/kandil_code.git
-cd kandil_code
+git clone https://github.com/Kandil7/kandil-code.git
+cd kandil-code
 cargo run --release
 ```
 
