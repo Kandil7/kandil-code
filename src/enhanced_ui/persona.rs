@@ -1,5 +1,5 @@
 use std::collections::{VecDeque, HashMap};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum DeveloperPersona {
@@ -42,13 +42,14 @@ pub struct DeveloperPreferences {
     pub project_focus: ProjectFocus,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub enum ProjectFocus {
     Frontend,
     Backend,
     FullStack,
     Infrastructure,
     Testing,
+    #[default]
     Unknown,
 }
 
@@ -108,14 +109,14 @@ impl DeveloperPersona {
         // Architect: Mix of all high-level commands (ask, review, refactor)
         let architect_score = (ai_ratio * 0.4 + review_ratio * 0.3 + refactor_ratio * 0.3).min(1.0);
 
-        scores.insert(DeveloperPersona::Expert, expert_score);
-        scores.insert(DeveloperPersona::Maintainer, maintainer_score);
-        scores.insert(DeveloperPersona::Learner, learner_score);
-        scores.insert(DeveloperPersona::AutomationSpecialist, automation_score);
-        scores.insert(DeveloperPersona::DebuggingSpecialist, debugging_score);
-        scores.insert(DeveloperPersona::CodeReviewSpecialist, review_score);
-        scores.insert(DeveloperPersona::DevOpsEngineer, devops_score);
-        scores.insert(DeveloperPersona::Architect, architect_score);
+        scores.insert(DeveloperPersona::Expert, expert_score as f64);
+        scores.insert(DeveloperPersona::Maintainer, maintainer_score as f64);
+        scores.insert(DeveloperPersona::Learner, learner_score as f64);
+        scores.insert(DeveloperPersona::AutomationSpecialist, automation_score as f64);
+        scores.insert(DeveloperPersona::DebuggingSpecialist, debugging_score as f64);
+        scores.insert(DeveloperPersona::CodeReviewSpecialist, review_score as f64);
+        scores.insert(DeveloperPersona::DevOpsEngineer, devops_score as f64);
+        scores.insert(DeveloperPersona::Architect, architect_score as f64);
 
         // Find persona with highest score
         let (highest_persona, highest_score) = scores

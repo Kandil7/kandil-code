@@ -50,6 +50,8 @@ impl ProjectContext {
             recent_files,
             errors: 0,
             test_failures: 0,
+            detailed_errors: Vec::new(),
+            detailed_test_failures: Vec::new(),
         }
     }
 
@@ -140,7 +142,6 @@ impl ProjectContext {
 
         suggestions
     }
-}
 
     fn has_code_files_without_docs(&self) -> bool {
         self.recent_files.iter().any(|path| {
@@ -206,7 +207,7 @@ pub struct BuildError {
     pub severity: ErrorSeverity,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ErrorSeverity {
     Info,
     Warning,

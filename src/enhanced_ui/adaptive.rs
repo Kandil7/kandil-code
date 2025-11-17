@@ -23,7 +23,7 @@ pub enum AccessibilityMode {
     MotorImpaired,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RenderingQuality {
     /// Minimal rendering for low-resource systems
     Low,
@@ -37,11 +37,12 @@ pub enum RenderingQuality {
 
 impl AdaptiveUI {
     pub fn new(profile: HardwareProfile) -> Self {
+        let rendering_quality = Self::determine_rendering_quality(&profile);
         Self {
             profile,
             latency_target: Duration::from_millis(200),
             accessibility_mode: AccessibilityMode::Standard,
-            rendering_quality: Self::determine_rendering_quality(&profile),
+            rendering_quality,
         }
     }
 
@@ -74,7 +75,7 @@ impl AdaptiveUI {
             let ram_score = (profile.total_ram_gb as f64 / 16.0).min(1.0) * 3.0; // 0-3 based on RAM
             let cpu_score = (profile.cpu_physical_cores as f64 / 8.0).min(1.0) * 3.0; // 0-3 based on CPU
             let gpu_score = if profile.gpu.is_some() { 2.0 } else { 0.0 }; // 0-2 based on GPU
-            let storage_score = if profile.free_disk_gb > 50.0 { 2.0 } else { 0.0 }; // 0-2 based on storage
+            let storage_score = if profile.free_disk_gb > 50 { 2.0 } else { 0.0 }; // 0-2 based on storage
 
             (ram_score + cpu_score + gpu_score + storage_score).round() as u32
         };
@@ -213,7 +214,7 @@ impl AdaptiveUI {
         match &self.profile.gpu {
             Some(gpu) => {
                 // Higher frame rate with dedicated GPU
-                if gpu.memory_gb >= 4.0 {
+                if gpu.memory_gb >= 4 {
                     60
                 } else {
                     30

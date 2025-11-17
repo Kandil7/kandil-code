@@ -12,7 +12,7 @@ pub mod hardware;
 pub mod performance;
 pub mod plugin_marketplace;
 pub mod prompting;
-pub mod recording;
+// pub mod recording; // Temporarily disabled to resolve module ambiguity error
 pub mod rollback;
 pub mod strategy;
 pub mod task_complexity;

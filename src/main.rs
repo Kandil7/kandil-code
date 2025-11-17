@@ -24,8 +24,6 @@ mod shutdown;
 #[cfg(feature = "tui")]
 mod tui;
 mod utils;
-mod wasm;
-mod web;
 
 #[tokio::main]
 async fn main() -> Result<()> {

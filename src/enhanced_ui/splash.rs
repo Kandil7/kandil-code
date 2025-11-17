@@ -191,7 +191,7 @@ pub async fn execute_splash_command(
                 .collect();
 
             if !matches.is_empty() {
-                let suggestions: Vec<String> = matches.iter().map(|cmd| cmd.trigger).collect();
+                let suggestions: Vec<String> = matches.iter().map(|cmd| cmd.trigger.to_string()).collect();
                 return Err(anyhow!(
                     "Unknown command '{}'. Did you mean one of: {}",
                     trigger,
@@ -294,7 +294,7 @@ async fn handle_ask(args: &[String]) -> Result<SplashResult> {
 async fn handle_refactor(args: &[String]) -> Result<SplashResult> {
     use crate::utils::refactoring::{RefactorEngine, RefactorParams};
     use crate::core::adapters::ai::factory::AIProviderFactory;
-    use crate::config::Config;
+    use crate::utils::config::Config;
     use crate::enhanced_ui::smart_prompt::SmartPrompt;
     use std::sync::Arc;
 
@@ -335,7 +335,7 @@ async fn handle_refactor(args: &[String]) -> Result<SplashResult> {
 async fn handle_test(args: &[String], ctx: &mut CommandContext) -> Result<SplashResult> {
     use crate::utils::test_generation::TestGenerator;
     use crate::core::adapters::ai::factory::AIProviderFactory;
-    use crate::config::Config;
+    use crate::utils::config::Config;
     use std::sync::Arc;
 
     if args.iter().any(|arg| arg == "--background") {
@@ -370,7 +370,7 @@ async fn handle_test(args: &[String], ctx: &mut CommandContext) -> Result<Splash
 
 async fn handle_fix() -> Result<SplashResult> {
     use crate::core::adapters::ai::factory::AIProviderFactory;
-    use crate::config::Config;
+    use crate::utils::config::Config;
     use crate::core::agents::ReviewAgent;
     use crate::enhanced_ui::smart_prompt::SmartPrompt;
     use std::sync::Arc;
@@ -406,7 +406,7 @@ async fn handle_commit() -> Result<SplashResult> {
 
 async fn handle_review() -> Result<SplashResult> {
     use crate::core::adapters::ai::factory::AIProviderFactory;
-    use crate::config::Config;
+    use crate::utils::config::Config;
     use crate::core::agents::ReviewAgent;
     use crate::enhanced_ui::smart_prompt::SmartPrompt;
     use std::sync::Arc;

@@ -29,7 +29,7 @@ impl UniversalInput {
             editor: DefaultEditor::new()?,
             voice_enabled: false,
             vision_enabled: false,
-            input_timeout: Duration::from_secs(30),  // Default 30 second timeout
+            input_timeout: Duration::from_secs(30), // Default 30 second timeout
             show_contextual_hints: true,
         })
     }
@@ -86,7 +86,7 @@ impl UniversalInput {
                 else {
                     InputMethod::Text(line)
                 }
-            },
+            }
             Err(ReadlineError::Interrupted) => InputMethod::Text(String::new()),
             Err(ReadlineError::Eof) => InputMethod::Text("exit".into()),
             Err(err) => return Err(err.into()),
@@ -140,7 +140,10 @@ impl UniversalInput {
             Ok(InputMethod::Image(description.to_string()))
         } else {
             // Fall back to text if vision is disabled
-            Ok(InputMethod::Text(format!("/ask Describe this: {}", description)))
+            Ok(InputMethod::Text(format!(
+                "/ask Describe this: {}",
+                description
+            )))
         }
     }
 }

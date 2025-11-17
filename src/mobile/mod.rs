@@ -11,6 +11,7 @@ use std::{
 use tokio::sync::mpsc;
 
 // Use tokio's time for async sleep
+use tokio::sync::oneshot;
 use tokio::time::{sleep, Duration};
 
 use crate::enhanced_ui::splash::JobSnapshot;
@@ -59,7 +60,7 @@ pub struct MobileBridge {
 // Handler for managing approvals
 #[derive(Clone)]
 pub struct ApprovalHandler {
-    pending_approvals: Arc<Mutex<tokio_util::sync::CancellationToken>>,
+    pending_approvals: Arc<tokio::sync::Notify>,
     approval_tx: mpsc::UnboundedSender<ApprovalRequest>,
     approval_rx: Arc<Mutex<Option<mpsc::UnboundedReceiver<ApprovalRequest>>>>,
 }
@@ -77,7 +78,7 @@ impl ApprovalHandler {
         let (approval_tx, approval_rx) = mpsc::unbounded_channel();
 
         Self {
-            pending_approvals: Arc::new(tokio_util::sync::CancellationToken::new()),
+            pending_approvals: Arc::new(tokio::sync::Notify::new()),
             approval_tx,
             approval_rx: Arc::new(Mutex::new(Some(approval_rx))),
         }

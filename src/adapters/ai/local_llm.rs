@@ -1,9 +1,7 @@
-use crate::config::layered::{Config, ModelConfig};
+use crate::config::layered::ModelConfig;
 use crate::errors::LocalModelError;
-use crate::models::catalog::{ModelSpec, MODEL_CATALOG};
+use crate::models::catalog::MODEL_CATALOG;
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 // Placeholder struct that will be updated once candle implementation is ready
 pub struct LocalLLMAdapter {

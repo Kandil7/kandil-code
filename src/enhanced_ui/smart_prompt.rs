@@ -143,7 +143,7 @@ fn format_diff_preview(diff: &str) -> String {
             formatted.push_str(&format!("🟢 {}\n", line));
         } else if line.starts_with('-') {
             formatted.push_str(&format!("🔴 {}\n", line));
-        } else if line.starts_with('@@') {
+        } else if line.starts_with("@@") {
             formatted.push_str(&format!("🔵 {}\n", line));
         } else {
             formatted.push_str(&format!("   {}\n", line));

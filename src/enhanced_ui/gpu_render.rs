@@ -242,7 +242,7 @@ pub fn recommended_render_mode() -> RenderMode {
     let hardware = detect_hardware();
 
     match hardware.gpu {
-        Some(ref gpu) if gpu.memory_gb >= 2.0 => RenderMode::HighQuality,
+        Some(ref gpu) if gpu.memory_gb >= 2 => RenderMode::HighQuality,
         Some(_) => RenderMode::Balanced,
         None => RenderMode::CpuOnly,
     }

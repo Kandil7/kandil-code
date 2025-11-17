@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
-use portable_pty::{native_pty_system, Child, CommandBuilder, ExitStatus, PtySize};
+use portable_pty::{native_pty_system, Child, CommandBuilder, ExitStatus, PtyPair, PtySize};
 use std::{
     collections::HashMap,
     env,
@@ -13,9 +13,8 @@ use std::{
 use tokio::sync::RwLock;
 
 /// Enhanced PTY manager for better isolation and session tracking
-#[derive(Clone)]
 pub struct PtyManager {
-    pty_system: Arc<dyn portable_pty::PtySystem + Send + Sync>,
+    pty_system: Box<dyn portable_pty::PtySystem + Send>,
 }
 
 impl PtyManager {
@@ -25,8 +24,17 @@ impl PtyManager {
         })
     }
 
-    pub fn create_pty_pair(&self, size: PtySize) -> Result<Box<dyn portable_pty::PtyPair + Send + Sync>> {
+    pub fn create_pty_pair(&self, size: PtySize) -> Result<portable_pty::PtyPair> {
         Ok(self.pty_system.openpty(size)?)
+    }
+}
+
+impl Clone for PtyManager {
+    fn clone(&self) -> Self {
+        // Create a new PTY system for each clone
+        Self {
+            pty_system: portable_pty::native_pty_system(),
+        }
     }
 }
 
@@ -217,10 +225,10 @@ fn run_command_in_pty_enhanced(
 
     let pair = pty_manager.create_pty_pair(pty_size)?;
 
-    let mut child = pair.slave().spawn_command(cmd)?;
-    drop(pair.slave());
+    let mut child = pair.slave.spawn_command(cmd)?;
+    drop(pair.slave);
 
-    let mut reader = pair.master().try_clone_reader()?;
+    let mut reader = pair.master.try_clone_reader()?;
     let reader_handle = thread::spawn(move || {
         let mut buffer = Vec::new();
         let mut chunk = [0u8; 4096];

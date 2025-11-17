@@ -1,5 +1,4 @@
 use serde::Serialize;
-use std::process::Command;
 
 #[derive(Debug, Serialize)]
 pub struct CoremlRuntimeStatus {

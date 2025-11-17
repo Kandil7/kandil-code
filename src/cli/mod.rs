@@ -13,7 +13,6 @@ use crate::utils::project_manager::ProjectManager;
 use crate::utils::refactoring::{RefactorEngine, RefactorParams};
 use crate::utils::templates::TemplateEngine;
 use crate::utils::test_generation::TestGenerator;
-use crate::web;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use futures_util::stream::StreamExt;
@@ -843,7 +842,10 @@ pub async fn run(cli: Cli) -> Result<()> {
         Some(Commands::Linux { sub }) => handle_linux(sub).await?,
         Some(Commands::Mobile { sub }) => handle_mobile(sub).await?,
         Some(Commands::Pwa { output }) => handle_pwa(output).await?,
-        Some(Commands::Web { address }) => web::start(&address).await?,
+        Some(Commands::Web { address }) => {
+            eprintln!("Web module is temporarily unavailable in this build");
+            return Ok(());
+        },
         Some(Commands::Doctor { verbose, format }) => handle_doctor(verbose, &format).await?,
         None => {
             println!("Kandil Code - Intelligent Development Platform");

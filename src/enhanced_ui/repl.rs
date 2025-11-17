@@ -1,20 +1,20 @@
 use crate::{
     enhanced_ui::{
-        adaptive::{AdaptiveUI, AccessibilityMode},
-        ide_sync::IdeSyncBridge,
+        adaptive::AdaptiveUI,
+        ide_sync::IdeSync,
         input::{InputMethod, UniversalInput},
         persona::PersonaProfile,
-        predictive::{PredictiveExecutor, GhostText},
-        smart_prompt::{SmartPrompt, PipelineStage},
+        predictive::PredictiveExecutor,
+        smart_prompt::{PipelineStage, SmartPrompt},
         splash::{self, CommandContext, SplashResult},
         terminal::KandilTerminal,
-        thought::{ThoughtFragment, ThoughtStreamer, OutputMode},
+        thought::{OutputMode, ThoughtFragment, ThoughtStreamer},
     },
     mobile::MobileBridge,
 };
-use anyhow::{anyhow, Result};
-use std::{collections::VecDeque, env, sync::Arc, time::Duration, cmp};
+use anyhow::Result;
 use futures_util;
+use std::{collections::VecDeque, env, sync::Arc, time::Duration};
 
 #[derive(Default)]
 pub struct KandilPrompt {
@@ -46,10 +46,11 @@ pub async fn run_repl() -> Result<()> {
     let mut context = CommandContext::new(terminal.clone());
     let mut prompt = KandilPrompt::default();
     let mut universal_input = UniversalInput::new()?;
-    let adaptive_ui = AdaptiveUI::from_system()
-        .with_accessibility_mode(AdaptiveUI::detect_accessibility_mode());
-    let ide_sync = IdeSyncBridge::new(env::current_dir()?);
-    ide_sync.launch(adaptive_ui.clone())?;
+    let adaptive_ui = AdaptiveUI::from_system();
+    let ide_sync = IdeSync::new();
+    if let Err(e) = ide_sync.start_language_server(env::current_dir()?).await {
+        eprintln!("Warning: Failed to start language server: {}", e);
+    }
     let mobile_bridge = MobileBridge::new()?;
     let mut predictive_executor = PredictiveExecutor::new();
     let thought_streamer = ThoughtStreamer::with_output_mode(OutputMode::Streaming);
@@ -58,9 +59,15 @@ pub async fn run_repl() -> Result<()> {
     println!("Kandil Shell initialized. Type /help for splash commands.");
 
     // Display UI capabilities based on hardware and accessibility settings
-    println!("UI Capabilities: {}", adaptive_ui.capabilities_description());
+    println!(
+        "UI Capabilities: {}",
+        adaptive_ui.capabilities_description()
+    );
     if adaptive_ui.should_enhance_accessibility() {
-        println!("Accessibility features enabled: {:?}", adaptive_ui.accessibility_mode());
+        println!(
+            "Accessibility features enabled: {:?}",
+            adaptive_ui.accessibility_mode()
+        );
     }
 
     loop {
@@ -82,6 +89,14 @@ pub async fn run_repl() -> Result<()> {
                 InputMethod::Image(description) => {
                     adaptive_ui.announce("status", "🖼️ Image input routed to /ask");
                     format!("/ask {}", description)
+                }
+                InputMethod::Gesture(action) => {
+                    adaptive_ui.announce("status", "🖐️ Gesture input mapped to /ask");
+                    format!("/ask {}", action)
+                }
+                InputMethod::Modal(content) => {
+                    adaptive_ui.announce("status", "🎛️ Modal input mapped to text");
+                    content
                 }
             }
         };
@@ -145,7 +160,10 @@ pub async fn run_repl() -> Result<()> {
         // Display ghost text information if available
         if let Some(ghost) = predictive_executor.get_ghost_text() {
             if ghost.confidence > 0.5 {
-                println!("👻 Ghost text suggestion: {} (confidence: {:.1})", ghost.text, ghost.confidence);
+                println!(
+                    "👻 Ghost text suggestion: {} (confidence: {:.1})",
+                    ghost.text, ghost.confidence
+                );
             }
         }
         mobile_bridge.sync_jobs(&job_snapshot);
@@ -214,8 +232,8 @@ async fn handle_special_input(
             if let Some(thinker) = thought_streamer {
                 println!("💡 Recent thoughts:");
                 let recent = thinker.get_recent_thoughts(5);
-                for thought in recent {
-                    match thought.fragment {
+                for thought in &recent {
+                    match &thought.fragment {
                         ThoughtFragment::Action(msg) => println!("  ⚙️  Action: {}", msg),
                         ThoughtFragment::Result(msg) => println!("  ✅ Result: {}", msg),
                         ThoughtFragment::Insight(msg) => println!("  💡 Insight: {}", msg),
@@ -235,7 +253,21 @@ async fn handle_special_input(
             Ok(true)
         }
         "exit" | "quit" => Ok(false),
-        _ => Ok(false),
+        _ => {
+            // Handle other splash commands
+            if input.starts_with('/') {
+                let mut parts = input.split_whitespace();
+                let trigger = parts.next().unwrap_or("");
+                let args: Vec<String> = parts.map(|p| p.to_string()).collect();
+                let result = splash::execute_splash_command(trigger, &args, context).await?;
+                if let Some(message) = result.message {
+                    println!("{}", message);
+                }
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
     }
 }
 
@@ -262,22 +294,25 @@ async fn parse_command_enhanced(input: &str, context: &CommandContext) -> Comman
             let enhanced_args = enhance_args_with_context(trigger, args, context).await;
             Command::Splash {
                 trigger: trigger.clone(),
-                args: enhanced_args
+                args: enhanced_args,
             }
-        },
+        }
         Command::Shell(cmd) => {
             // Potentially enhance shell command with context
             Command::Shell(cmd.clone())
-        },
+        }
         Command::NaturalLanguage(query) => {
             // Potentially enhance natural language with context
             Command::NaturalLanguage(query.clone())
-        },
+        }
         Command::Pipeline(commands) => {
             // Enhance pipeline commands recursively
             let enhanced_commands: Vec<Command> = futures_util::future::join_all(
-                commands.iter().map(|cmd| enhance_command_with_context(cmd, context))
-            ).await;
+                commands
+                    .iter()
+                    .map(|cmd| enhance_command_with_context(cmd, context)),
+            )
+            .await;
             Command::Pipeline(enhanced_commands)
         }
     }
@@ -302,7 +337,11 @@ fn parse_single_command(input: &str) -> Command {
     }
 }
 
-async fn enhance_args_with_context(trigger: &str, args: &[String], context: &CommandContext) -> Vec<String> {
+async fn enhance_args_with_context(
+    trigger: &str,
+    args: &[String],
+    context: &CommandContext,
+) -> Vec<String> {
     // Add context-aware enhancements to arguments
     let mut enhanced_args = args.to_vec();
 
@@ -334,10 +373,10 @@ async fn enhance_command_with_context(command: &Command, context: &CommandContex
             let enhanced_args = enhance_args_with_context(trigger, args, context).await;
             Command::Splash {
                 trigger: trigger.clone(),
-                args: enhanced_args
+                args: enhanced_args,
             }
-        },
-        _ => command.clone()
+        }
+        _ => command.clone(),
     }
 }
 
@@ -370,6 +409,7 @@ fn show_contextual_hint(ctx: &CommandContext, adaptive_ui: &AdaptiveUI) {
     }
 }
 
+#[derive(Clone)]
 enum Command {
     Splash { trigger: String, args: Vec<String> },
     Shell(String),
@@ -390,22 +430,21 @@ async fn execute_command(
             // Create detailed pipeline stages for better visualization
             let mut stages = Vec::new();
             for (i, cmd) in commands.iter().enumerate() {
-                let stage = PipelineStage::new(
-                    &format!("Stage {}", i + 1),
-                    &command_label(cmd),
-                )
-                .with_description(match cmd {
-                    Command::Splash { trigger, .. } => Some(format!("Splash command: {}", trigger)),
-                    Command::Shell(cmd_str) => Some(format!("Shell command: {}", cmd_str)),
-                    Command::NaturalLanguage(_) => Some("Natural language query".to_string()),
-                    Command::Pipeline(_) => Some("Nested pipeline".to_string()),
-                }.unwrap_or_else(|| "Unknown command".to_string()))
-                .with_duration(Duration::from_secs((i + 1) as u64 * 2)); // Estimate duration based on stage number
+                let stage = PipelineStage::new(&format!("Stage {}", i + 1), &command_label(cmd))
+                    .with_description(&match cmd {
+                        Command::Splash { trigger, .. } => {
+                            format!("Splash command: {}", trigger)
+                        }
+                        Command::Shell(cmd_str) => format!("Shell command: {}", cmd_str),
+                        Command::NaturalLanguage(_) => "Natural language query".to_string(),
+                        Command::Pipeline(_) => "Nested pipeline".to_string(),
+                    })
+                    .with_duration(Duration::from_secs((i + 1) as u64 * 2)); // Estimate duration based on stage number
 
                 stages.push(stage);
             }
 
-            println!("{}", SmartPrompt::pipeline_summary_detailed(&stages));
+            println!("{}", SmartPrompt::pipeline_summary_detailed(&stages)); // Fixed: borrowed instead of moved
 
             for cmd in flatten_pipeline(commands) {
                 handle_basic_command(
@@ -530,8 +569,13 @@ fn print_help() {
     println!("  {:<10} {}", "/help", "Show this help message");
     println!("  {:<10} {}", "/clear", "Clear the terminal screen");
     println!("  {:<10} {}", "/reset", "Reset the command context");
-    println!("  {:<10} {}", "/thoughts", "Display recent thoughts from AI reasoning");
-    println!("\nKandil Shell adapts to your development persona and provides contextual assistance.");
+    println!(
+        "  {:<10} {}",
+        "/thoughts", "Display recent thoughts from AI reasoning"
+    );
+    println!(
+        "\nKandil Shell adapts to your development persona and provides contextual assistance."
+    );
     println!("Use standard shell commands without '/' prefix.");
 }
 

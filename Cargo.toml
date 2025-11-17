@@ -3,7 +3,7 @@ name = "kandil_code"
 version = "2.1.0"
 edition = "2021"
 description = "Intelligent development platform (CLI + TUI + Multi-Agent System) with cross-platform AI model benchmarking, system diagnostics, and advanced development tools"
-authors = ["Kandil7 <your-email@example.com>"]
+authors = ["Kandil7"]
 license = "MIT"
 repository = "https://github.com/Kandil7/kandil_code"
 homepage = "https://github.com/Kandil7/kandil_code"
@@ -18,6 +18,7 @@ include = [
     "README.md",
     "LICENSE",
     "docs/**",
+    "pwa/**",
     "release.toml",
     "scripts/**",
     "deny.toml"
