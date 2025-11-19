@@ -1,17 +1,44 @@
 [package]
 name = "kandil_code"
-version = "0.1.0"
+version = "2.1.1"
 edition = "2021"
-description = "Intelligent development platform (CLI + TUI + Multi-Agent System)"
-authors = ["Kandil7 <your-email@example.com>"]
+description = "Intelligent development platform (CLI + TUI + Multi-Agent System) with cross-platform AI model benchmarking, system diagnostics, and advanced development tools"
+authors = ["Kandil7"]
 license = "MIT"
 repository = "https://github.com/Kandil7/kandil_code"
+homepage = "https://github.com/Kandil7/kandil_code"
+documentation = "https://github.com/Kandil7/kandil_code/blob/main/README.md"
+readme = "README.md"
+keywords = ["ai", "cli", "development", "benchmarking", "productivity"]
+categories = ["development-tools", "command-line-utilities"]
+include = [
+    "src/**",
+    "templates/**",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "docs/**",
+    "pwa/**",
+    "release.toml",
+    "scripts/**",
+    "deny.toml"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anthropic_rust = "0.2.2"
 clap = { version = "4.0", features = ["derive"] }
+jsonrpc-core = "18.0"
+jsonrpc-http-server = "18.0"
+lsp-types = "0.97"
+chrono = { version = "0.4", features = ["serde"] }
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", optional = true }
 tokio = { version = "1.0", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -29,18 +56,38 @@ ratatui = { version = "0.24", features = ["all-widgets"], optional = true }
 crossterm = { version = "0.27", features = ["event-stream"], optional = true }
 syntect = { version = "5.0", optional = true }
 tree-sitter = "0.20"
-tree-sitter-dart = "0.19"
+tree-sitter-dart = "0.0.4"
 tree-sitter-python = "0.20"
 tree-sitter-javascript = "0.20"
 tree-sitter-rust = "0.20"
 dashmap = "5.4"
-anthropic-rs = "0.2"
 async-openai = "0.14"
 rusqlite = { version = "0.29", features = ["bundled"] }
 rusqlite_migration = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
 backoff = { version = "0.4", features = ["tokio"] }
 toml = "0.8"
+regex = "1.0"
+image = "0.24"
+notify = "6.0"
+sysinfo = "0.29"
+nvml-wrapper = { version = "0.4", optional = true }
+lazy_static = "1.4"
+indicatif = "0.17"
+tiktoken-rs = "0.5"
+hnsw_rs = "0.3.2"
+blake3 = "1.5"
+whoami = "1.0"
+tracing = "0.1"
+futures-util = "0.3"
+rand = "0.8"
+portable-pty = "0.8"
+rustyline = "12"
+axum = { version = "0.7", features = ["ws"] }
+walkdir = "2.5"
+ring = "0.17"
+wgpu = { version = "0.19", optional = true }
+pollster = { version = "0.3", optional = true }
+rayon = { version = "1.5", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
@@ -50,6 +97,8 @@ predicates = "3.0"
 [features]
 default = ["tui"]
 tui = ["ratatui", "crossterm", "tui-textarea", "syntect"]
+gpu-rendering = ["wgpu", "pollster", "rayon"]
+wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "web-sys"]
 
 [[bin]]
 name = "kandil"

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kandil Code Web Companion</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .stat-card {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .command-history {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .command-entry {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .command-entry:last-child {
+            border-bottom: none;
+        }
+        .command-entry .timestamp {
+            font-size: 0.8em;
+            color: #777;
+        }
+        .command-entry .command {
+            font-weight: bold;
+            color: #2980b9;
+        }
+        .progress-bar {
+            height: 10px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #3498db;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 Kandil Code Web Companion</h1>
+        <p>Real-time dashboard for your development environment</p>
+    </div>
+    
+    <div class="dashboard-container">
+        <div class="card">
+            <h2>📊 System Stats</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div>CPU Usage</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="cpu-progress"></div>
+                    </div>
+                    <div id="cpu-usage">0%</div>
+                </div>
+                <div class="stat-card">
+                    <div>Memory Usage</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="memory-progress"></div>
+                    </div>
+                    <div id="memory-usage">0%</div>
+                </div>
+                <div class="stat-card">
+                    <div>Disk Space</div>
+                    <div id="disk-space">N/A</div>
+                </div>
+                <div class="stat-card">
+                    <div>Uptime</div>
+                    <div id="uptime">0s</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>📁 Active Context</h2>
+            <div>Current Directory: <span id="current-dir">Loading...</span></div>
+            <div>Active Files: <span id="active-files-count">0</span> files</div>
+            <div>Current Context: <span id="current-context">default</span></div>
+        </div>
+        
+        <div class="card">
+            <h2>📝 Command History</h2>
+            <div class="command-history" id="command-history">
+                <p>No commands yet</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>💬 AI Interactions</h2>
+            <div id="ai-interactions">
+                <p>No AI interactions yet</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Connection to WebSocket
+        let ws = null;
+        
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/api/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function(event) {
+                console.log('Connected to WebSocket');
+                document.querySelector('.header h1').innerHTML = '🤖 Kandil Code Web Companion <span style="font-size:0.7em; color:#77dd77;">● LIVE</span>';
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                updateDashboard(data);
+            };
+            
+            ws.onclose = function(event) {
+                console.log('WebSocket connection closed');
+                document.querySelector('.header h1').innerHTML = '🤖 Kandil Code Web Companion <span style="font-size:0.7em; color:#ff6b6b;">● DISCONNECTED</span>';
+                // Attempt to reconnect after 3 seconds
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+        
+        function updateDashboard(sessionState) {
+            // Update system stats
+            document.getElementById('cpu-usage').textContent = sessionState.system_stats.cpu_usage.toFixed(1) + '%';
+            document.getElementById('cpu-progress').style.width = sessionState.system_stats.cpu_usage + '%';
+            
+            document.getElementById('memory-usage').textContent = sessionState.system_stats.memory_usage.toFixed(1) + '%';
+            document.getElementById('memory-progress').style.width = sessionState.system_stats.memory_usage + '%';
+            
+            document.getElementById('disk-space').textContent = sessionState.system_stats.disk_space;
+            document.getElementById('uptime').textContent = sessionState.system_stats.uptime;
+            
+            // Update context
+            document.getElementById('current-context').textContent = sessionState.current_context;
+            document.getElementById('active-files-count').textContent = sessionState.active_files.length;
+            
+            // Update command history
+            const historyDiv = document.getElementById('command-history');
+            if (sessionState.command_history.length === 0) {
+                historyDiv.innerHTML = '<p>No commands yet</p>';
+            } else {
+                historyDiv.innerHTML = '';
+                sessionState.command_history.forEach(entry => {
+                    const entryDiv = document.createElement('div');
+                    entryDiv.className = 'command-entry';
+                    entryDiv.innerHTML = `
+                        <div class="timestamp">${new Date(entry.timestamp).toLocaleTimeString()}</div>
+                        <div class="command">${entry.command}</div>
+                        <div class="result">${entry.result.substring(0, 100)}${entry.result.length > 100 ? '...' : ''}</div>
+                        <div>Duration: ${entry.duration_ms}ms</div>
+                    `;
+                    historyDiv.appendChild(entryDiv);
+                });
+            }
+        }
+        
+        // Connect when page loads
+        window.onload = connectWebSocket;
+    </script>
+</body>
+</html>

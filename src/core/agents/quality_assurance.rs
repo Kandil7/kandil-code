@@ -1,17 +1,20 @@
 //! Quality Assurance Module
-//! 
+//!
 //! Comprehensive testing and validation for the v2.0 release
 
+use crate::core::adapters::ai::KandilAI;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct QualityAssuranceSystem {
     pub test_suite: TestSuite,
     pub code_quality_metrics: CodeQualityMetrics,
     pub compliance_checker: ComplianceChecker,
     pub stability_report: StabilityReport,
+    pub ai: Arc<KandilAI>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -151,7 +154,7 @@ pub struct CodeQualityMetrics {
 pub struct ComplianceChecker {
     pub security_standards: HashMap<String, bool>, // e.g., "OWASP Top 10", "CWE/SANS"
     pub accessibility_standards: HashMap<String, bool>, // e.g., "WCAG 2.1 AA"
-    pub coding_standards: HashMap<String, bool>, // e.g., "Rust API Guidelines"
+    pub coding_standards: HashMap<String, bool>,   // e.g., "Rust API Guidelines"
     pub compliance_report: ComplianceReport,
 }
 
@@ -169,8 +172,8 @@ pub struct ComplianceReport {
 pub struct StabilityReport {
     pub uptime_percentage: f64,
     pub mean_time_between_failures: f64, // in hours
-    pub mean_time_to_recovery: f64, // in minutes
-    pub crash_frequency: f64, // crashes per 1000 hours
+    pub mean_time_to_recovery: f64,      // in minutes
+    pub crash_frequency: f64,            // crashes per 1000 hours
     pub memory_leaks_identified: u32,
     pub performance_regression: bool,
     pub stability_score: f64, // 0-100
@@ -193,7 +196,7 @@ pub struct TestResults {
     pub passed_tests: u32,
     pub failed_tests: u32,
     pub skipped_tests: u32,
-    pub test_pass_rate: f64, // 0-100%
+    pub test_pass_rate: f64,        // 0-100%
     pub average_test_duration: f64, // in ms
 }
 
@@ -249,8 +252,20 @@ pub enum ReadinessLevel {
     FullyReady,
 }
 
+impl std::fmt::Display for ReadinessLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadinessLevel::NotReady => write!(f, "Not Ready"),
+            ReadinessLevel::NeedsAttention => write!(f, "Needs Attention"),
+            ReadinessLevel::AlmostReady => write!(f, "Almost Ready"),
+            ReadinessLevel::Ready => write!(f, "Ready"),
+            ReadinessLevel::FullyReady => write!(f, "Fully Ready"),
+        }
+    }
+}
+
 impl QualityAssuranceSystem {
-    pub fn new() -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             test_suite: TestSuite {
                 unit_tests: vec![],
@@ -294,12 +309,16 @@ impl QualityAssuranceSystem {
                 performance_regression: false,
                 stability_score: 0.0,
             },
+            ai,
         }
     }
 
-    pub async fn run_full_qa_suite(&mut self) -> Result<QaReport> {
-        println!("Running comprehensive QA suite...");
-        
+    pub async fn run_full_qa_suite(&mut self, project_path: &str) -> Result<QaReport> {
+        println!(
+            "Running comprehensive QA suite for project at {}...",
+            project_path
+        );
+
         // Run all test types
         self.run_unit_tests().await?;
         self.run_integration_tests().await?;
@@ -308,25 +327,25 @@ impl QualityAssuranceSystem {
         self.run_security_tests().await?;
         self.run_accessibility_tests().await?;
         self.run_i18n_tests().await?;
-        
+
         // Gather code quality metrics
         self.collect_code_metrics()?;
-        
+
         // Check compliance
         self.check_compliance().await?;
-        
+
         // Generate stability report
         self.generate_stability_report().await?;
-        
+
         // Create final QA report
         let report = self.create_qa_report()?;
-        
+
         Ok(report)
     }
 
     async fn run_unit_tests(&mut self) -> Result<()> {
         println!("Running unit tests...");
-        
+
         // In a real implementation, this would run actual unit tests
         // For simulation, we'll add mock results
         self.test_suite.unit_tests = vec![
@@ -350,15 +369,15 @@ impl QualityAssuranceSystem {
                 status: TestStatus::Failed,
                 duration_ms: 8,
                 coverage_percentage: 80.0,
-            }
+            },
         ];
-        
+
         Ok(())
     }
 
     async fn run_integration_tests(&mut self) -> Result<()> {
         println!("Running integration tests...");
-        
+
         self.test_suite.integration_tests = vec![
             IntegrationTest {
                 name: "test_agent_communication".to_string(),
@@ -373,84 +392,76 @@ impl QualityAssuranceSystem {
                 status: TestStatus::Passed,
                 duration_ms: 87,
                 failure_reason: None,
-            }
+            },
         ];
-        
+
         Ok(())
     }
 
     async fn run_e2e_tests(&mut self) -> Result<()> {
         println!("Running end-to-end tests...");
-        
-        self.test_suite.e2e_tests = vec![
-            E2ETest {
-                name: "test_complete_project_lifecycle".to_string(),
-                scenario: "Create project → Generate code → Test → Deploy".to_string(),
-                status: TestStatus::Passed,
-                duration_ms: 3_200,
-                user_path: "CLI → TUI → CLI".to_string(),
-                failure_details: None,
-            }
-        ];
-        
+
+        self.test_suite.e2e_tests = vec![E2ETest {
+            name: "test_complete_project_lifecycle".to_string(),
+            scenario: "Create project → Generate code → Test → Deploy".to_string(),
+            status: TestStatus::Passed,
+            duration_ms: 3_200,
+            user_path: "CLI → TUI → CLI".to_string(),
+            failure_details: None,
+        }];
+
         Ok(())
     }
 
     async fn run_stress_tests(&mut self) -> Result<()> {
         println!("Running stress tests...");
-        
-        self.test_suite.stress_tests = vec![
-            StressTest {
-                name: "concurrent_ai_requests".to_string(),
-                target_metric: "response_time".to_string(),
-                threshold: 1000.0, // 1second
-                actual: 450.0,
-                status: TestStatus::Passed,
-                duration_ms: 10_000,
-                concurrent_users: 50,
-            }
-        ];
-        
+
+        self.test_suite.stress_tests = vec![StressTest {
+            name: "concurrent_ai_requests".to_string(),
+            target_metric: "response_time".to_string(),
+            threshold: 1000.0, // 1second
+            actual: 450.0,
+            status: TestStatus::Passed,
+            duration_ms: 10_000,
+            concurrent_users: 50,
+        }];
+
         Ok(())
     }
 
     async fn run_security_tests(&mut self) -> Result<()> {
         println!("Running security tests...");
-        
-        self.test_suite.security_tests = vec![
-            SecurityTest {
-                name: "input_validation_check".to_string(),
-                category: SecurityCategory::InputValidation,
-                status: TestStatus::Passed,
-                severity: Severity::High,
-                description: "Validates all user inputs are properly sanitized".to_string(),
-                remediation: "Use parameterized queries and input validation middleware".to_string(),
-            }
-        ];
-        
+
+        self.test_suite.security_tests = vec![SecurityTest {
+            name: "input_validation_check".to_string(),
+            category: SecurityCategory::InputValidation,
+            status: TestStatus::Passed,
+            severity: Severity::High,
+            description: "Validates all user inputs are properly sanitized".to_string(),
+            remediation: "Use parameterized queries and input validation middleware".to_string(),
+        }];
+
         Ok(())
     }
 
     async fn run_accessibility_tests(&mut self) -> Result<()> {
         println!("Running accessibility tests...");
-        
-        self.test_suite.accessibility_tests = vec![
-            AccessibilityTest {
-                name: "keyboard_navigation".to_string(),
-                wcag_level: WcagLevel::AA,
-                components: vec!["TUI".to_string(), "CLI".to_string()],
-                status: TestStatus::Passed,
-                issues_found: 0,
-                compliance_percentage: 95.0,
-            }
-        ];
-        
+
+        self.test_suite.accessibility_tests = vec![AccessibilityTest {
+            name: "keyboard_navigation".to_string(),
+            wcag_level: WcagLevel::AA,
+            components: vec!["TUI".to_string(), "CLI".to_string()],
+            status: TestStatus::Passed,
+            issues_found: 0,
+            compliance_percentage: 95.0,
+        }];
+
         Ok(())
     }
 
     async fn run_i18n_tests(&mut self) -> Result<()> {
         println!("Running internationalization tests...");
-        
+
         self.test_suite.i18n_tests = vec![
             I18nTest {
                 name: "french_translation_accuracy".to_string(),
@@ -465,15 +476,15 @@ impl QualityAssuranceSystem {
                 test_type: I18nTestType::RtlSupport,
                 status: TestStatus::Passed,
                 coverage_percentage: 85.0,
-            }
+            },
         ];
-        
+
         Ok(())
     }
 
     fn collect_code_metrics(&mut self) -> Result<()> {
         println!("Collecting code quality metrics...");
-        
+
         // In a real implementation, this would run static analysis tools
         // For simulation, assign mock values
         self.code_quality_metrics = CodeQualityMetrics {
@@ -487,19 +498,27 @@ impl QualityAssuranceSystem {
             lines_of_code: 12500,
             function_count: 450,
         };
-        
+
         Ok(())
     }
 
     async fn check_compliance(&mut self) -> Result<()> {
         println!("Checking compliance standards...");
-        
+
         // Add compliance standards
-        self.compliance_checker.security_standards.insert("OWASP Top 10".to_string(), true);
-        self.compliance_checker.security_standards.insert("CWE/SANS".to_string(), true);
-        self.compliance_checker.accessibility_standards.insert("WCAG 2.1 AA".to_string(), true);
-        self.compliance_checker.coding_standards.insert("Rust API Guidelines".to_string(), true);
-        
+        self.compliance_checker
+            .security_standards
+            .insert("OWASP Top 10".to_string(), true);
+        self.compliance_checker
+            .security_standards
+            .insert("CWE/SANS".to_string(), true);
+        self.compliance_checker
+            .accessibility_standards
+            .insert("WCAG 2.1 AA".to_string(), true);
+        self.compliance_checker
+            .coding_standards
+            .insert("Rust API Guidelines".to_string(), true);
+
         // Generate compliance report
         self.compliance_checker.compliance_report = ComplianceReport {
             overall_compliance: 94.2,
@@ -512,61 +531,72 @@ impl QualityAssuranceSystem {
                 "Improve documentation coverage for new agent modules".to_string(),
             ],
         };
-        
+
         Ok(())
     }
 
     async fn generate_stability_report(&mut self) -> Result<()> {
         println!("Generating stability report...");
-        
+
         // In a real implementation, this would monitor running systems
         // For simulation, assign mock values
         self.stability_report = StabilityReport {
             uptime_percentage: 99.8,
             mean_time_between_failures: 120.5, // hours
-            mean_time_to_recovery: 12.3, // minutes
-            crash_frequency: 0.2, // crashes per 1000 hours
+            mean_time_to_recovery: 12.3,       // minutes
+            crash_frequency: 0.2,              // crashes per 1000 hours
             memory_leaks_identified: 0,
             performance_regression: false,
             stability_score: 96.5,
         };
-        
+
         Ok(())
     }
 
     fn create_qa_report(&self) -> Result<QaReport> {
         // Calculate test results
         let total_unit = self.test_suite.unit_tests.len();
-        let passed_unit = self.test_suite.unit_tests.iter()
+        let passed_unit = self
+            .test_suite
+            .unit_tests
+            .iter()
             .filter(|t| matches!(t.status, TestStatus::Passed))
             .count();
-        
+
         let total_integration = self.test_suite.integration_tests.len();
-        let passed_integration = self.test_suite.integration_tests.iter()
+        let passed_integration = self
+            .test_suite
+            .integration_tests
+            .iter()
             .filter(|t| matches!(t.status, TestStatus::Passed))
             .count();
-            
+
         let total_e2e = self.test_suite.e2e_tests.len();
-        let passed_e2e = self.test_suite.e2e_tests.iter()
+        let passed_e2e = self
+            .test_suite
+            .e2e_tests
+            .iter()
             .filter(|t| matches!(t.status, TestStatus::Passed))
             .count();
-        
+
         let test_results = TestResults {
             total_tests: (total_unit + total_integration + total_e2e) as u32,
             passed_tests: (passed_unit + passed_integration + passed_e2e) as u32,
-            failed_tests: ((total_unit - passed_unit) + (total_integration - passed_integration) + (total_e2e - passed_e2e)) as u32,
+            failed_tests: ((total_unit - passed_unit)
+                + (total_integration - passed_integration)
+                + (total_e2e - passed_e2e)) as u32,
             skipped_tests: 0, // For this simulation
-            test_pass_rate: ((passed_unit + passed_integration + passed_e2e) as f64 / 
-                            (total_unit + total_integration + total_e2e) as f64) * 100.0,
+            test_pass_rate: ((passed_unit + passed_integration + passed_e2e) as f64
+                / (total_unit + total_integration + total_e2e) as f64)
+                * 100.0,
             average_test_duration: 0.0, // Would calculate from actual durations
         };
-        
+
         // Calculate overall quality score
-        let overall_quality_score = 
-            (self.code_quality_metrics.test_coverage * 0.3) +
-            (self.compliance_checker.compliance_report.overall_compliance * 0.3) +
-            (self.stability_report.stability_score * 0.4);
-        
+        let overall_quality_score = (self.code_quality_metrics.test_coverage * 0.3)
+            + (self.compliance_checker.compliance_report.overall_compliance * 0.3)
+            + (self.stability_report.stability_score * 0.4);
+
         // Determine readiness level
         let readiness_level = if overall_quality_score >= 95.0 {
             ReadinessLevel::FullyReady
@@ -579,10 +609,10 @@ impl QualityAssuranceSystem {
         } else {
             ReadinessLevel::NotReady
         };
-        
+
         // Generate recommendations
         let mut recommendations = Vec::new();
-        
+
         if self.code_quality_metrics.code_smells > 5 {
             recommendations.push(Recommendation {
                 priority: Priority::High,
@@ -592,7 +622,7 @@ impl QualityAssuranceSystem {
                 impact: Impact::High,
             });
         }
-        
+
         if self.code_quality_metrics.documentation_coverage < 90.0 {
             recommendations.push(Recommendation {
                 priority: Priority::Medium,
@@ -602,7 +632,7 @@ impl QualityAssuranceSystem {
                 impact: Impact::High,
             });
         }
-        
+
         if self.compliance_checker.compliance_report.critical_failures > 0 {
             recommendations.push(Recommendation {
                 priority: Priority::Critical,
@@ -625,11 +655,81 @@ impl QualityAssuranceSystem {
     }
 
     pub fn generate_qa_report_md(&self) -> String {
+        // Calculate test pass rate as percentage
+        let test_pass_rate = {
+            let total_tests = self.test_suite.unit_tests.len()
+                + self.test_suite.integration_tests.len()
+                + self.test_suite.e2e_tests.len();
+            let passed_tests = self
+                .test_suite
+                .unit_tests
+                .iter()
+                .filter(|t| matches!(t.status, TestStatus::Passed))
+                .count()
+                + self
+                    .test_suite
+                    .integration_tests
+                    .iter()
+                    .filter(|t| matches!(t.status, TestStatus::Passed))
+                    .count()
+                + self
+                    .test_suite
+                    .e2e_tests
+                    .iter()
+                    .filter(|t| matches!(t.status, TestStatus::Passed))
+                    .count();
+            if total_tests > 0 {
+                (passed_tests as f64 / total_tests as f64) * 100.0
+            } else {
+                0.0
+            }
+        };
+
+        let total_tests_run = self.test_suite.unit_tests.len()
+            + self.test_suite.integration_tests.len()
+            + self.test_suite.e2e_tests.len();
+        let passed_tests = self
+            .test_suite
+            .unit_tests
+            .iter()
+            .filter(|t| matches!(t.status, TestStatus::Passed))
+            .count()
+            + self
+                .test_suite
+                .integration_tests
+                .iter()
+                .filter(|t| matches!(t.status, TestStatus::Passed))
+                .count()
+            + self
+                .test_suite
+                .e2e_tests
+                .iter()
+                .filter(|t| matches!(t.status, TestStatus::Passed))
+                .count();
+        let failed_tests = self
+            .test_suite
+            .unit_tests
+            .iter()
+            .filter(|t| !matches!(t.status, TestStatus::Passed))
+            .count()
+            + self
+                .test_suite
+                .integration_tests
+                .iter()
+                .filter(|t| !matches!(t.status, TestStatus::Passed))
+                .count()
+            + self
+                .test_suite
+                .e2e_tests
+                .iter()
+                .filter(|t| !matches!(t.status, TestStatus::Passed))
+                .count();
+
         format!(
             r#"# Quality Assurance Report - Kandil Code v2.0
 
 ## Executive Summary
-- Overall Quality Score: {:.2}% 
+- Overall Quality Score: {:.2}%
 - Test Pass Rate: {:.2}%
 - Compliance Level: {:.2}%
 - Stability Score: {:.2}%
@@ -665,29 +765,60 @@ impl QualityAssuranceSystem {
 
 "#,
             self.code_quality_metrics.test_coverage,
+            test_pass_rate,
             self.compliance_checker.compliance_report.overall_compliance,
             self.stability_report.stability_score,
-            self.test_suite.unit_tests.len() + self.test_suite.integration_tests.len() + self.test_suite.e2e_tests.len(),
-            self.test_suite.unit_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count() +
-            self.test_suite.integration_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count() +
-            self.test_suite.e2e_tests.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count(),
-            self.test_suite.unit_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count() +
-            self.test_suite.integration_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count() +
-            self.test_suite.e2e_tests.iter().filter(|t| !matches!(t.status, TestStatus::Passed)).count(),
-            0, // skipped
-            self.code_quality_metrics.test_coverage,
+            self.test_suite.unit_tests.len()
+                + self.test_suite.integration_tests.len()
+                + self.test_suite.e2e_tests.len(), // Total tests
+            self.test_suite
+                .unit_tests
+                .iter()
+                .filter(|t| matches!(t.status, TestStatus::Passed))
+                .count()
+                + self
+                    .test_suite
+                    .integration_tests
+                    .iter()
+                    .filter(|t| matches!(t.status, TestStatus::Passed))
+                    .count()
+                + self
+                    .test_suite
+                    .e2e_tests
+                    .iter()
+                    .filter(|t| matches!(t.status, TestStatus::Passed))
+                    .count(), // Passed
+            self.test_suite
+                .unit_tests
+                .iter()
+                .filter(|t| !matches!(t.status, TestStatus::Passed))
+                .count()
+                + self
+                    .test_suite
+                    .integration_tests
+                    .iter()
+                    .filter(|t| !matches!(t.status, TestStatus::Passed))
+                    .count()
+                + self
+                    .test_suite
+                    .e2e_tests
+                    .iter()
+                    .filter(|t| !matches!(t.status, TestStatus::Passed))
+                    .count(), // Failed
+            0, // Skipped - was using duplicated_lines here incorrectly
+            self.code_quality_metrics.test_coverage, // Test Coverage (using same as Overall Quality Score)
             self.code_quality_metrics.cyclomatic_complexity,
             self.code_quality_metrics.maintainability_index,
-            self.code_quality_metrics.code_smells,
-            self.code_quality_metrics.documentation_coverage,
+            self.code_quality_metrics.code_smells, // Code Smells
+            self.code_quality_metrics.documentation_coverage, // Documentation Coverage
             self.compliance_checker.compliance_report.critical_failures,
             self.compliance_checker.compliance_report.warnings,
             self.stability_report.uptime_percentage,
             self.stability_report.mean_time_between_failures,
             self.stability_report.mean_time_to_recovery,
             "See recommendations section for details", // Would list actual recommendations
-            ReadinessLevel::Ready, // Would use the calculated value
-            "ready"
+            ReadinessLevel::Ready,                     // Would use the calculated value
+            "ready"                                    // for release status
         )
     }
 }

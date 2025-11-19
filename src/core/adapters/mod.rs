@@ -1,10 +1,10 @@
 //! Adapters for external services
-//! 
+//!
 //! Contains implementations for interacting with external services
 //! such as AI providers, Git, and file systems.
 
 pub mod ai;
-pub mod git;
 pub mod file;
+pub mod git;
 
-pub use ai::{KandilAI, factory::AIProviderFactory, tracked::TrackedAI};
+pub use ai::tracked::TrackedAI;

@@ -1,13 +1,14 @@
 //! Architect simulation agent
-//! 
+//!
 //! Agent that simulates the role of a software architect
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArchitecturePatterns {
@@ -60,55 +61,65 @@ pub struct ArchitectureDecisionRecord {
 }
 
 pub struct ArchitectSimulation {
-    ai: KandilAI,
+    pub ai: Arc<KandilAI>,
     knowledge: ArchitecturePatterns,
     decision_log: Vec<ArchitectureDecision>,
 }
 
 impl ArchitectSimulation {
-    pub fn new(ai: KandilAI) -> Result<Self> {
+    pub fn new(ai: Arc<KandilAI>) -> Result<Self> {
         // Load architecture patterns from data
         let mut patterns = HashMap::new();
-        
-        patterns.insert("clean_architecture".to_string(), Pattern {
-            name: "Clean Architecture".to_string(),
-            description: "Layers: Entities → Use Cases → Interface Adapters → Frameworks".to_string(),
-            pros: vec![
-                "Testability".to_string(),
-                "Separation of Concerns".to_string(),
-                "Independent of Frameworks".to_string(),
-            ],
-            cons: vec![
-                "Overhead for small projects".to_string(),
-                "Learning curve".to_string(),
-                "Additional complexity".to_string(),
-            ],
-            use_cases: vec![
-                "Enterprise apps".to_string(),
-                "Multi-platform".to_string(),
-                "Long-lived systems".to_string(),
-            ],
-            alternatives: vec!["Hexagonal Architecture".to_string(), "Layered Architecture".to_string()],
-        });
-        
-        patterns.insert("hexagonal".to_string(), Pattern {
-            name: "Hexagonal Architecture".to_string(),
-            description: "Also known as Ports and Adapters".to_string(),
-            pros: vec![
-                "Testability".to_string(),
-                "Framework independence".to_string(),
-                "Clear boundaries".to_string(),
-            ],
-            cons: vec![
-                "Complexity".to_string(),
-                "Multiple layers".to_string(),
-            ],
-            use_cases: vec![
-                "Integration-heavy systems".to_string(),
-                "Testing scenarios".to_string(),
-            ],
-            alternatives: vec!["Clean Architecture".to_string(), "Layered Architecture".to_string()],
-        });
+
+        patterns.insert(
+            "clean_architecture".to_string(),
+            Pattern {
+                name: "Clean Architecture".to_string(),
+                description: "Layers: Entities → Use Cases → Interface Adapters → Frameworks"
+                    .to_string(),
+                pros: vec![
+                    "Testability".to_string(),
+                    "Separation of Concerns".to_string(),
+                    "Independent of Frameworks".to_string(),
+                ],
+                cons: vec![
+                    "Overhead for small projects".to_string(),
+                    "Learning curve".to_string(),
+                    "Additional complexity".to_string(),
+                ],
+                use_cases: vec![
+                    "Enterprise apps".to_string(),
+                    "Multi-platform".to_string(),
+                    "Long-lived systems".to_string(),
+                ],
+                alternatives: vec![
+                    "Hexagonal Architecture".to_string(),
+                    "Layered Architecture".to_string(),
+                ],
+            },
+        );
+
+        patterns.insert(
+            "hexagonal".to_string(),
+            Pattern {
+                name: "Hexagonal Architecture".to_string(),
+                description: "Also known as Ports and Adapters".to_string(),
+                pros: vec![
+                    "Testability".to_string(),
+                    "Framework independence".to_string(),
+                    "Clear boundaries".to_string(),
+                ],
+                cons: vec!["Complexity".to_string(), "Multiple layers".to_string()],
+                use_cases: vec![
+                    "Integration-heavy systems".to_string(),
+                    "Testing scenarios".to_string(),
+                ],
+                alternatives: vec![
+                    "Clean Architecture".to_string(),
+                    "Layered Architecture".to_string(),
+                ],
+            },
+        );
 
         Ok(Self {
             ai,
@@ -137,7 +148,7 @@ impl ArchitectSimulation {
         );
 
         let review_text = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         Ok(ArchitectureReview {
             score: 85,
@@ -151,12 +162,19 @@ impl ArchitectSimulation {
         })
     }
 
-    pub async fn make_architecture_decision(&mut self, context: &str, decision: &str) -> Result<ArchitectureDecision> {
+    pub async fn make_architecture_decision(
+        &mut self,
+        context: &str,
+        decision: &str,
+    ) -> Result<ArchitectureDecision> {
         let decision_id = format!("ADR-{}", self.decision_log.len() + 1);
-        
+
         let new_decision = ArchitectureDecision {
             id: decision_id,
-            title: format!("Decision for: {}", context.chars().take(30).collect::<String>()),
+            title: format!(
+                "Decision for: {}",
+                context.chars().take(30).collect::<String>()
+            ),
             status: DecisionStatus::Proposed,
             context: context.to_string(),
             decision: decision.to_string(),
@@ -167,9 +185,9 @@ impl ArchitectSimulation {
             date: chrono::Utc::now().format("%Y-%m-%d").to_string(),
             author: "Architect Simulation".to_string(),
         };
-        
+
         self.decision_log.push(new_decision.clone());
-        
+
         Ok(new_decision)
     }
 
@@ -204,7 +222,7 @@ impl Agent for ArchitectSimulation {
             "As a Software Architect, given this architecture challenge: {}\n\nPlan the next architectural decision or review step. Consider patterns, trade-offs, and long-term implications.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -214,7 +232,7 @@ impl Agent for ArchitectSimulation {
             "Implement this architectural plan: {}\n\nDesign system components, select patterns, and document decisions.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -224,7 +242,7 @@ impl Agent for ArchitectSimulation {
             "Analyze these architectural results: {}\n\nHow does this architecture address the requirements? What risks or opportunities does it present?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

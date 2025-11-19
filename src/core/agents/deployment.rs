@@ -1,13 +1,14 @@
 //! Deployment agent
-//! 
+//!
 //! Specialized agent for managing deployments and CI/CD pipelines
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeploymentPlan {
@@ -55,7 +56,7 @@ pub struct DeploymentResult {
 }
 
 pub struct DeploymentAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub environment_configs: HashMap<String, EnvironmentConfig>,
 }
 
@@ -70,36 +71,48 @@ pub struct EnvironmentConfig {
 }
 
 impl DeploymentAgent {
-    pub fn new(ai: KandilAI) -> Result<Self> {
+    pub fn new(ai: Arc<KandilAI>) -> Result<Self> {
         let mut env_configs = HashMap::new();
-        
+
         // Add default environment configurations
-        env_configs.insert("dev".to_string(), EnvironmentConfig {
-            name: "Development".to_string(),
-            url: "https://dev.example.com".to_string(),
-            credentials: "dev-credentials".to_string(),
-            allowed_deploy_times: vec!["any".to_string()],
-            health_check_url: "https://dev.example.com/health".to_string(),
-            backup_locations: vec!["s3://dev-backups".to_string()],
-        });
-        
-        env_configs.insert("staging".to_string(), EnvironmentConfig {
-            name: "Staging".to_string(),
-            url: "https://staging.example.com".to_string(),
-            credentials: "staging-credentials".to_string(),
-            allowed_deploy_times: vec!["09:00-17:00".to_string()],
-            health_check_url: "https://staging.example.com/health".to_string(),
-            backup_locations: vec!["s3://staging-backups".to_string()],
-        });
-        
-        env_configs.insert("prod".to_string(), EnvironmentConfig {
-            name: "Production".to_string(),
-            url: "https://example.com".to_string(),
-            credentials: "prod-credentials".to_string(),
-            allowed_deploy_times: vec!["01:00-05:00".to_string()],
-            health_check_url: "https://example.com/health".to_string(),
-            backup_locations: vec!["s3://prod-backups".to_string(), "gcs://prod-backups".to_string()],
-        });
+        env_configs.insert(
+            "dev".to_string(),
+            EnvironmentConfig {
+                name: "Development".to_string(),
+                url: "https://dev.example.com".to_string(),
+                credentials: "dev-credentials".to_string(),
+                allowed_deploy_times: vec!["any".to_string()],
+                health_check_url: "https://dev.example.com/health".to_string(),
+                backup_locations: vec!["s3://dev-backups".to_string()],
+            },
+        );
+
+        env_configs.insert(
+            "staging".to_string(),
+            EnvironmentConfig {
+                name: "Staging".to_string(),
+                url: "https://staging.example.com".to_string(),
+                credentials: "staging-credentials".to_string(),
+                allowed_deploy_times: vec!["09:00-17:00".to_string()],
+                health_check_url: "https://staging.example.com/health".to_string(),
+                backup_locations: vec!["s3://staging-backups".to_string()],
+            },
+        );
+
+        env_configs.insert(
+            "prod".to_string(),
+            EnvironmentConfig {
+                name: "Production".to_string(),
+                url: "https://example.com".to_string(),
+                credentials: "prod-credentials".to_string(),
+                allowed_deploy_times: vec!["01:00-05:00".to_string()],
+                health_check_url: "https://example.com/health".to_string(),
+                backup_locations: vec![
+                    "s3://prod-backups".to_string(),
+                    "gcs://prod-backups".to_string(),
+                ],
+            },
+        );
 
         Ok(Self {
             ai,
@@ -107,10 +120,16 @@ impl DeploymentAgent {
         })
     }
 
-    pub async fn create_deployment_plan(&self, environment: &str, app_name: &str) -> Result<DeploymentPlan> {
-        let config = self.environment_configs.get(environment)
+    pub async fn create_deployment_plan(
+        &self,
+        environment: &str,
+        app_name: &str,
+    ) -> Result<DeploymentPlan> {
+        let config = self
+            .environment_configs
+            .get(environment)
             .ok_or_else(|| anyhow::anyhow!("Environment {} not found", environment))?;
-            
+
         let prompt = format!(
             r#"Create a deployment plan for {} to {} environment.
             
@@ -130,7 +149,7 @@ impl DeploymentAgent {
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         // For now, we'll return a basic plan
         Ok(DeploymentPlan {
@@ -153,19 +172,20 @@ impl DeploymentAgent {
                     dependencies: vec!["backup".to_string()],
                     timeout: 600,
                     success_conditions: vec!["Pods are running".to_string()],
-                }
+                },
             ],
             dependencies: vec![],
             rollback_plan: RollbackPlan {
-                steps: vec![
-                    RollbackStep {
-                        id: "rollback".to_string(),
-                        action: "Rollback deployment".to_string(),
-                        command: "kubectl rollout undo".to_string(),
-                        description: "Rollback to previous version".to_string(),
-                    }
+                steps: vec![RollbackStep {
+                    id: "rollback".to_string(),
+                    action: "Rollback deployment".to_string(),
+                    command: "kubectl rollout undo".to_string(),
+                    description: "Rollback to previous version".to_string(),
+                }],
+                conditions: vec![
+                    "Health check fails".to_string(),
+                    "Manual trigger".to_string(),
                 ],
-                conditions: vec!["Health check fails".to_string(), "Manual trigger".to_string()],
                 notification_targets: vec!["dev-team@example.com".to_string()],
             },
             estimated_duration: "10-15 minutes".to_string(),
@@ -174,7 +194,7 @@ impl DeploymentAgent {
 
     pub async fn execute_deployment(&self, plan: &DeploymentPlan) -> Result<DeploymentResult> {
         println!("Starting deployment to {} environment...", plan.environment);
-        
+
         // In a real implementation, this would execute the actual deployment steps
         // For simulation, we'll return mock results
         Ok(DeploymentResult {
@@ -200,7 +220,7 @@ impl Agent for DeploymentAgent {
             "Given this deployment task: {}\n\nPlan the next deployment step. Consider environment constraints, dependencies, and risk mitigation.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -210,7 +230,7 @@ impl Agent for DeploymentAgent {
             "Execute this deployment plan: {}\n\nSimulate the deployment process and report outcomes.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -220,7 +240,7 @@ impl Agent for DeploymentAgent {
             "Analyze these deployment results: {}\n\nWhat does this tell us about the deployment success and any issues encountered?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

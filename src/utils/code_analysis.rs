@@ -1,5 +1,5 @@
 //! Code analysis using Tree-sitter
-//! 
+//!
 //! Contains functionality for syntax-aware code analysis
 
 use anyhow::Result;
@@ -16,18 +16,15 @@ impl CodeAnalyzer {
 
     pub fn analyze_file(&self, file_path: &str) -> Result<String> {
         let path = Path::new(file_path);
-        let extension = path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("");
-        
+        let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+
         // In a real implementation, we would:
         // 1. Load the appropriate Tree-sitter grammar based on the file extension
         // 2. Parse the file content
         // 3. Extract syntax information
-        
+
         let content = std::fs::read_to_string(file_path)?;
-        
+
         // For now, return basic file info
         Ok(format!(
             "File: {}\nLines: {}\nExtension: {}\nSize: {} bytes",

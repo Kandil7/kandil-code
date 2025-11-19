@@ -1,22 +1,22 @@
 //! IDE extension prototype
-//! 
+//!
 //! Prototype for IDE integration with Kandil Code features
 
+use crate::core::adapters::ai::KandilAI;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct IdeExtension {
     pub name: String,
     pub version: String,
     pub supported_ide: Vec<String>, // e.g., "VSCode", "IntelliJ", "Vim"
     pub features: Vec<ExtensionFeature>,
-    pub ai_client: KandilAI,
+    pub ai_client: Arc<KandilAI>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ExtensionFeature {
     InlineChat,
     CodeGeneration,
@@ -67,7 +67,7 @@ pub struct InlineComment {
 }
 
 impl IdeExtension {
-    pub fn new(ai_client: KandilAI) -> Self {
+    pub fn new(ai_client: Arc<KandilAI>) -> Self {
         Self {
             name: "Kandil Code Extension".to_string(),
             version: "0.1.0".to_string(),
@@ -89,7 +89,10 @@ impl IdeExtension {
         }
     }
 
-    pub async fn get_code_suggestions(&self, context: &ExtensionContext) -> Result<Vec<CodeSuggestion>> {
+    pub async fn get_code_suggestions(
+        &self,
+        context: &ExtensionContext,
+    ) -> Result<Vec<CodeSuggestion>> {
         let prompt = format!(
             r#"Analyze this code for improvements:
             Language: {}
@@ -103,20 +106,18 @@ impl IdeExtension {
         );
 
         let suggestions_text = self.ai_client.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         // For simulation, return basic suggestions
-        Ok(vec![
-            CodeSuggestion {
-                id: "sugg-001".to_string(),
-                title: "Performance Optimization".to_string(),
-                description: "Consider caching this computation".to_string(),
-                code: "let cached_result = expensive_computation();".to_string(),
-                range: (context.cursor_position.0, context.cursor_position.0 + 1),
-                confidence: 0.85,
-                category: SuggestionCategory::Performance,
-            }
-        ])
+        Ok(vec![CodeSuggestion {
+            id: "sugg-001".to_string(),
+            title: "Performance Optimization".to_string(),
+            description: "Consider caching this computation".to_string(),
+            code: "let cached_result = expensive_computation();".to_string(),
+            range: (context.cursor_position.0, context.cursor_position.0 + 1),
+            confidence: 0.85,
+            category: SuggestionCategory::Performance,
+        }])
     }
 
     pub async fn generate_documentation(&self, code: &str, language: &str) -> Result<String> {
@@ -150,12 +151,16 @@ impl IdeExtension {
         );
 
         let response = self.ai_client.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse multiple options
         Ok(vec![response])
     }
 
-    pub async fn run_inline_code_review(&self, code: &str, language: &str) -> Result<Vec<InlineComment>> {
+    pub async fn run_inline_code_review(
+        &self,
+        code: &str,
+        language: &str,
+    ) -> Result<Vec<InlineComment>> {
         let prompt = format!(
             r#"Perform inline code review for this {} code:
             
@@ -167,16 +172,14 @@ impl IdeExtension {
         );
 
         let review = self.ai_client.chat(&prompt).await?;
-        
+
         // For simulation, return basic comment
-        Ok(vec![
-            InlineComment {
-                line_number: 1,
-                message: review.chars().take(100).collect::<String>(),
-                severity: "info".to_string(),
-                code_fix: Some("Consider adding error handling".to_string()),
-            }
-        ])
+        Ok(vec![InlineComment {
+            line_number: 1,
+            message: review.chars().take(100).collect::<String>(),
+            severity: "info".to_string(),
+            code_fix: Some("Consider adding error handling".to_string()),
+        }])
     }
 
     pub async fn get_test_suggestions(&self, code: &str, language: &str) -> Result<String> {

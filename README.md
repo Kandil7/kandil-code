@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Language-Rust-orange.svg)](https://www.rust-lang.org/)
-[![Version](https://img.shields.io/badge/Version-v2.0.0-blue)](https://github.com/Kandil7/kandil_code/releases)
+[![Version](https://img.shields.io/badge/Version-v2.1.1-blue)](https://github.com/Kandil7/kandil-code/releases)
 
 ## Table of Contents
 - [Overview](#overview)
@@ -32,9 +32,20 @@ This platform combines the efficiency of command-line interfaces with the intera
 - **Multi-Language Project Generation**: Support for Flutter, Python, JavaScript, Rust, and more
 - **Intelligent CLI**: Context-aware command line interface with AI assistance
 - **Interactive TUI Studio**: Terminal-based IDE with file navigation, code preview, and AI chat
-- **Unified AI Interface**: Support for local (Ollama) and cloud models (Claude, Qwen, OpenAI)
+- **Unified AI Interface**: Support for local models and cloud models (Claude, Qwen, OpenAI)
 - **Multi-Agent System**: Specialized agents for different development tasks
 - **Project Management**: Secure local storage with cloud synchronization (Supabase)
+- **Cross-Platform Benchmarking**: Built-in model performance benchmarking across different runtimes
+- **System Diagnostics**: Comprehensive system health checks with `doctor` command
+
+### Local Model Integration
+- **Hardware-Aware Auto-Detection**: Automatically detects your hardware specs (RAM, CPU, GPU) and selects optimal models
+- **Zero-Configuration Default**: Works out-of-the-box with automatic model selection based on available resources
+- **Model Catalog**: Built-in catalog with models from 1.5B to 70B parameters optimized for different hardware tiers
+- **Model Management CLI**: Install, list, remove, verify, benchmark, and switch models with simple commands
+- **Quantization Support**: Automatic quantization selection (Q4, Q5, Q6) for optimal performance
+- **Execution Strategies**: LocalOnly, Hybrid (with cloud fallback), and Dynamic (model selection based on task complexity)
+- **Performance Optimization**: Advanced caching (semantic, TTL), prefetching, and performance monitoring
 
 ### AI-Powered Development
 - **Requirements Elicitation**: AI-assisted gathering and documentation of software requirements
@@ -43,6 +54,7 @@ This platform combines the efficiency of command-line interfaces with the intera
 - **Code Review**: Automated code quality and security analysis
 - **Testing**: Automated test generation and execution
 - **Refactoring**: Suggestion and application of code improvements with preview workflow
+- **Quick Commands**: Slash commands for rapid development tasks (`/ref`, `/test`, `/fix`, `/review`)
 
 ### Professional Role Simulations
 - **Project Manager Simulation**: Sprint planning, retrospective facilitation, and project coordination
@@ -71,18 +83,18 @@ This platform combines the efficiency of command-line interfaces with the intera
 Download the appropriate binary for your platform from the releases page:
 ```bash
 # Linux/macOS
-curl -L https://github.com/Kandil7/kandil_code/releases/download/v2.0.0/kandil_linux_x86_64.tar.gz | tar xz
+curl -L https://github.com/Kandil7/kandil-code/releases/download/v2.1.1/kandil_linux_x86_64.tar.gz | tar xz
 sudo mv kandil /usr/local/bin
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/Kandil7/kandil_code/releases/download/v2.0.0/kandil_windows_x64.zip" -OutFile "kandil.zip"
+Invoke-WebRequest -Uri "https://github.com/Kandil7/kandil-code/releases/download/v2.1.1/kandil_windows_x64.zip" -OutFile "kandil.zip"
 Expand-Archive -Path "kandil.zip" -DestinationPath .
 ```
 
 ### From Source
 ```bash
-git clone https://github.com/Kandil7/kandil_code.git
-cd kandil_code
+git clone https://github.com/Kandil7/kandil-code.git
+cd kandil-code
 cargo build --release
 ```
 
@@ -90,8 +102,30 @@ cargo build --release
 After installation, initialize your configuration:
 ```bash
 kandil init
-kandil config set-key <provider> <api-key>  # e.g., claude, openai, qwen
+kandil config set-key <provider> <api-key>  # e.g., claude, openai, qwen (for cloud providers)
 ```
+
+### Local Model Setup (Optional)
+Kandil Code comes with built-in support for local models that work automatically:
+
+1. **Automatic Model Selection**: On first run, Kandil Code will detect your hardware and automatically select an appropriate model based on available RAM:
+   - 4-8GB RAM: Lightweight models (1.5B-3B parameters)
+   - 8-16GB RAM: Standard models (7B parameters)
+   - 16-32GB RAM: Professional models (14B parameters)
+   - 32GB+ RAM: Premium models (70B parameters)
+
+2. **Manual Model Management**: You can manually install and manage local models:
+   ```bash
+   kandil model list                    # List all available models
+   kandil model list --compatible      # List models compatible with your hardware
+   kandil model install qwen2.5-coder-7b-q4  # Install a specific model
+   kandil model use qwen2.5-coder-7b-q4     # Set as default model
+   kandil model benchmark                # Benchmark your current model
+   kandil model verify qwen2.5-coder-7b-q4  # Verify model integrity
+   kandil model remove qwen2.5-coder-7b-q4  # Uninstall model
+   ```
+
+The local models are stored in your user data directory and are automatically managed by Kandil Code.
 
 ## Quick Start
 
@@ -134,6 +168,28 @@ kandil docs generate
 kandil test generate src/main.rs
 kandil test execute
 ```
+
+### Quick Development Commands
+Kandil Code includes powerful slash commands for rapid development tasks:
+
+```bash
+# Start the interactive shell
+kandil chat
+
+# Refactor code
+/refactor src/main.rs
+
+# Generate tests
+/test src/main.rs
+
+# Analyze and fix issues
+/fix
+
+# Review code
+/review
+```
+
+These commands provide quick access to common development tasks with AI assistance.
 
 ## Architecture
 
@@ -290,6 +346,41 @@ Kandil Code runs on multiple platforms with consistent experience:
 
 All platforms support the same feature set through a unified codebase.
 
+## Performance & System Diagnostics
+
+Kandil Code includes built-in tools for performance evaluation and system health:
+
+### Model Benchmarking
+```bash
+# Benchmark your current model across different runtimes
+kandil model benchmark
+
+# Benchmark with specific output format
+kandil model benchmark --format json
+
+# Benchmark all available runtimes
+kandil model benchmark --all-runtimes
+```
+
+### System Diagnostics
+```bash
+# Run comprehensive system diagnostics
+kandil doctor
+
+# Run platform-specific diagnostics
+kandil windows doctor  # On Windows
+kandil macos doctor    # On macOS
+kandil linux doctor    # On Linux
+```
+
+These tools help optimize performance and diagnose system issues.
+
+## Tutorials & Guides
+
+- [Quick Start Guide](docs/tutorials/quick_start.md) - Get up and running in minutes
+- [Onboarding Tutorial](docs/tutorials/onboarding_tutorial.md) - Complete guide to core features
+- [Advanced Tutorials](docs/tutorials/advanced_tutorials.md) - Advanced workflows and capabilities
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
@@ -321,12 +412,12 @@ Releases are automated via GitHub Actions when a new tag is pushed in the format
 Kandil Code is available through multiple distribution channels:
 
 ### Binary Releases
-Download pre-built binaries from the [Releases page](https://github.com/Kandil7/kandil_code/releases).
+Download pre-built binaries from the [Releases page](https://github.com/Kandil7/kandil-code/releases).
 
 ### From Source
 ```bash
-git clone https://github.com/Kandil7/kandil_code.git
-cd kandil_code
+git clone https://github.com/Kandil7/kandil-code.git
+cd kandil-code
 cargo run --release
 ```
 

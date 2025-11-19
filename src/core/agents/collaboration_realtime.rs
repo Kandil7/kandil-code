@@ -1,5 +1,5 @@
 //! Real-time collaboration module
-//! 
+//!
 //! Module for handling collaborative editing and real-time interaction
 
 use anyhow::Result;
@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
-use crate::core::agents::{DevOpsSimulation, ScrumSimulation, I18nAssistant, A11yAssistant};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollaborationSession {
@@ -85,6 +84,7 @@ pub struct SessionPermissions {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RealTimeCollaboration {
     pub sessions: Arc<Mutex<HashMap<String, CollaborationSession>>>,
+    #[serde(skip)]
     pub change_broadcasters: HashMap<String, broadcast::Sender<DocumentChange>>,
     pub active_users: HashMap<String, UserStatus>,
 }
@@ -125,9 +125,14 @@ impl RealTimeCollaboration {
         }
     }
 
-    pub fn create_session(&mut self, session_name: &str, owner_id: &str, owner_name: &str) -> Result<String> {
+    pub fn create_session(
+        &mut self,
+        session_name: &str,
+        owner_id: &str,
+        owner_name: &str,
+    ) -> Result<String> {
         let session_id = format!("sess-{}", uuid::Uuid::new_v4());
-        
+
         let session = CollaborationSession {
             id: session_id.clone(),
             name: session_name.to_string(),
@@ -148,20 +153,26 @@ impl RealTimeCollaboration {
                 can_manage_participants: true,
             },
         };
-        
+
         // Create a broadcast channel for changes
         let (tx, _rx) = broadcast::channel::<DocumentChange>(100);
         self.change_broadcasters.insert(session_id.clone(), tx);
-        
+
         let mut sessions = self.sessions.lock().unwrap();
         sessions.insert(session_id.clone(), session);
-        
+
         Ok(session_id)
     }
 
-    pub fn add_participant(&mut self, session_id: &str, user_id: &str, name: &str, role: Role) -> Result<()> {
+    pub fn add_participant(
+        &mut self,
+        session_id: &str,
+        user_id: &str,
+        name: &str,
+        role: Role,
+    ) -> Result<()> {
         let mut sessions = self.sessions.lock().unwrap();
-        
+
         if let Some(session) = sessions.get_mut(session_id) {
             session.participants.push(Participant {
                 id: user_id.to_string(),
@@ -170,18 +181,25 @@ impl RealTimeCollaboration {
                 joined_at: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
                 is_active: true,
             });
-            
+
             session.last_activity = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
-            
+
             Ok(())
         } else {
             Err(anyhow::anyhow!("Session {} not found", session_id))
         }
     }
 
-    pub fn add_document(&mut self, session_id: &str, doc_id: &str, name: &str, content: &str, language: &str) -> Result<()> {
+    pub fn add_document(
+        &mut self,
+        session_id: &str,
+        doc_id: &str,
+        name: &str,
+        content: &str,
+        language: &str,
+    ) -> Result<()> {
         let mut sessions = self.sessions.lock().unwrap();
-        
+
         if let Some(session) = sessions.get_mut(session_id) {
             let doc = CollaborativeDocument {
                 id: doc_id.to_string(),
@@ -194,58 +212,70 @@ impl RealTimeCollaboration {
                 cursors: HashMap::new(),
                 changes: vec![],
             };
-            
+
             session.documents.insert(doc_id.to_string(), doc);
-            
+
             session.last_activity = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
-            
+
             Ok(())
         } else {
             Err(anyhow::anyhow!("Session {} not found", session_id))
         }
     }
 
-    pub fn apply_change(&mut self, session_id: &str, user_id: &str, doc_id: &str, change: DocumentChange) -> Result<()> {
+    pub fn apply_change(
+        &mut self,
+        session_id: &str,
+        user_id: &str,
+        doc_id: &str,
+        change: DocumentChange,
+    ) -> Result<()> {
         let mut sessions = self.sessions.lock().unwrap();
-        
+
         if let Some(session) = sessions.get_mut(session_id) {
             if let Some(doc) = session.documents.get_mut(doc_id) {
                 // Apply the change based on operation
                 match change.operation {
                     ChangeOperation::Insert => {
                         // In a real implementation, this would insert text at position
-                        doc.content.insert_str(change.position as usize, &change.content);
-                    },
+                        doc.content
+                            .insert_str(change.position as usize, &change.content);
+                    }
                     ChangeOperation::Delete => {
                         // In a real implementation, this would delete text at position
                         if (change.position as usize) < doc.content.len() {
                             let end_idx = std::cmp::min(
-                                (change.position as usize) + change.content.len(), 
-                                doc.content.len()
+                                (change.position as usize) + change.content.len(),
+                                doc.content.len(),
                             );
                             doc.content.drain((change.position as usize)..end_idx);
                         }
-                    },
+                    }
                     ChangeOperation::Update => {
                         // In a real implementation, this would update text at position
-                        doc.content.insert_str(change.position as usize, &change.content);
+                        doc.content
+                            .insert_str(change.position as usize, &change.content);
                     }
                 }
-                
+
                 doc.version += 1;
                 doc.last_modified = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
                 doc.changes.push(change.clone());
-                
+
                 session.last_activity = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
-                
+
                 // Broadcast the change to other participants
                 if let Some(tx) = self.change_broadcasters.get(session_id) {
                     let _ = tx.send(change);
                 }
-                
+
                 Ok(())
             } else {
-                Err(anyhow::anyhow!("Document {} not found in session {}", doc_id, session_id))
+                Err(anyhow::anyhow!(
+                    "Document {} not found in session {}",
+                    doc_id,
+                    session_id
+                ))
             }
         } else {
             Err(anyhow::anyhow!("Session {} not found", session_id))
@@ -254,12 +284,16 @@ impl RealTimeCollaboration {
 
     pub fn get_document_content(&self, session_id: &str, doc_id: &str) -> Result<String> {
         let sessions = self.sessions.lock().unwrap();
-        
+
         if let Some(session) = sessions.get(session_id) {
             if let Some(doc) = session.documents.get(doc_id) {
                 Ok(doc.content.clone())
             } else {
-                Err(anyhow::anyhow!("Document {} not found in session {}", doc_id, session_id))
+                Err(anyhow::anyhow!(
+                    "Document {} not found in session {}",
+                    doc_id,
+                    session_id
+                ))
             }
         } else {
             Err(anyhow::anyhow!("Session {} not found", session_id))
@@ -268,7 +302,8 @@ impl RealTimeCollaboration {
 
     pub fn get_session(&self, session_id: &str) -> Result<CollaborationSession> {
         let sessions = self.sessions.lock().unwrap();
-        sessions.get(session_id)
+        sessions
+            .get(session_id)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Session {} not found", session_id))
     }

@@ -1,12 +1,13 @@
 //! Requirements elicitation agent
-//! 
+//!
 //! Specialized agent for gathering and documenting software requirements
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState, ReActLoop};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequirementsDocument {
@@ -53,23 +54,26 @@ pub struct Actor {
 }
 
 pub struct RequirementsAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
 }
 
 impl RequirementsAgent {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self { ai }
     }
 
-    pub async fn generate_requirements_document(&self, project_description: &str) -> Result<RequirementsDocument> {
+    pub async fn generate_requirements_document(
+        &self,
+        project_description: &str,
+    ) -> Result<RequirementsDocument> {
         let loop_engine = ReActLoop::new(5);
         let task = format!(
             "As a Business Analyst, elicit requirements for this project: {}.\n\nFollow these steps:\n1. Identify the main actors/users\n2. List functional requirements\n3. List non-functional requirements\n4. Identify constraints and assumptions\n5. Prioritize requirements\n\nFormat the response as a structured requirements document.", 
             project_description
         );
-        
+
         let result = loop_engine.run(self, &task).await?;
-        
+
         // For now, we'll create a basic document structure from the AI response
         // In a real implementation, we would properly parse the structured response
         Ok(RequirementsDocument {
@@ -91,7 +95,7 @@ impl Agent for RequirementsAgent {
             "Given this task: {}\n\nCurrent state: Step {}/{}\n\nPlan the next step to gather requirements. Be specific about what information to collect.",
             state.task, state.current_step + 1, state.max_steps
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -101,12 +105,12 @@ impl Agent for RequirementsAgent {
         // - Analyzing existing documentation
         // - Performing domain research
         // For simulation, we'll use the AI to generate a response based on the plan
-        
+
         let prompt = format!(
             "Act on this plan for requirements elicitation: {}\n\nGenerate specific questions to ask stakeholders or analysis to perform.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -116,7 +120,7 @@ impl Agent for RequirementsAgent {
             "Analyze this requirements gathering result: {}\n\nWhat does this tell us about the project requirements? What should we focus on next?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

@@ -1,21 +1,24 @@
 //! Studio application for the TUI interface
-//! 
+//!
 //! Main application state and event loop
 
-use crate::tui::events::{EventHandler, AppEvent};
-use crate::tui::widgets::{FileExplorer, CodeViewer, AIChatWidget};
+use crate::enhanced_ui::gpu_render::{should_use_gpu, GpuRenderer};
+use crate::enhanced_ui::terminal::KandilTerminal;
+use crate::tui::events::{AppEvent, EventHandler};
+use crate::tui::widgets::{AIChatWidget, CodeViewer, FileExplorer};
 use crate::utils::code_analysis::CodeAnalyzer;
 use anyhow::Result;
+use crossterm::{
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 use ratatui::{
     backend::CrosstermBackend,
-    crossterm::{
-        execute,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    },
-    layout::{Layout, Constraint, Direction},
+    layout::{Constraint, Direction, Layout},
     Frame, Terminal,
 };
 use std::io;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub enum UIState {
@@ -26,11 +29,14 @@ pub enum UIState {
 
 pub struct StudioApp {
     pub ui_state: UIState,
-    pub file_explorer: FileExplorer<'static>,
-    pub code_viewer: CodeViewer<'static>,
-    pub ai_chat: AIChatWidget<'static>,
+    pub file_explorer: FileExplorer,
+    pub code_viewer: CodeViewer,
+    pub ai_chat: AIChatWidget,
     pub code_analyzer: CodeAnalyzer,
     pub should_quit: bool,
+    #[cfg(feature = "gpu-rendering")]
+    gpu_renderer: Option<GpuRenderer>,
+    terminal: Arc<KandilTerminal>,
 }
 
 impl StudioApp {
@@ -41,8 +47,28 @@ impl StudioApp {
             "Cargo.toml".to_string(),
             "src/lib.rs".to_string(),
         ];
+
+        let code_content =
+            "// Sample code content\nfn main() {\n    println!(\"Hello, Kandil!\");\n}";
+
+        let terminal = Arc::new(KandilTerminal::new()?);
         
-        let code_content = "// Sample code content\nfn main() {\n    println!(\"Hello, Kandil!\");\n}";
+        // Initialize GPU renderer if available
+        #[cfg(feature = "gpu-rendering")]
+        let gpu_renderer = if should_use_gpu() {
+            match GpuRenderer::new() {
+                Ok(renderer) => {
+                    println!("🚀 GPU rendering enabled");
+                    Some(renderer)
+                }
+                Err(e) => {
+                    eprintln!("⚠️  GPU rendering unavailable: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         Ok(Self {
             ui_state: UIState::FileExplorer,
@@ -51,6 +77,9 @@ impl StudioApp {
             ai_chat: AIChatWidget::new(),
             code_analyzer: CodeAnalyzer::new()?,
             should_quit: false,
+            #[cfg(feature = "gpu-rendering")]
+            gpu_renderer,
+            terminal,
         })
     }
 
@@ -69,6 +98,14 @@ impl StudioApp {
         // Main loop
         loop {
             terminal.draw(|f| self.ui(f))?;
+
+            // GPU rendering (if enabled)
+            #[cfg(feature = "gpu-rendering")]
+            if let Some(ref mut gpu) = self.gpu_renderer {
+                if let Err(e) = gpu.render_frame(&self.terminal).await {
+                    eprintln!("GPU render error: {}", e);
+                }
+            }
 
             match events.next().await? {
                 AppEvent::Tick => {}
@@ -90,7 +127,7 @@ impl StudioApp {
         // Restore terminal
         disable_raw_mode()?;
         execute!(io::stdout(), LeaveAlternateScreen)?;
-        
+
         Ok(())
     }
 
@@ -99,16 +136,16 @@ impl StudioApp {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(20),  // File Explorer
-                Constraint::Percentage(60),  // Code Viewer
-                Constraint::Percentage(20),  // AI Chat
+                Constraint::Percentage(20), // File Explorer
+                Constraint::Percentage(60), // Code Viewer
+                Constraint::Percentage(20), // AI Chat
             ])
             .split(f.size());
 
         // Render widgets
-        f.render_widget(&self.file_explorer, chunks[0]);
-        f.render_widget(&self.code_viewer, chunks[1]);
-        f.render_widget(&self.ai_chat, chunks[2]);
+        f.render_widget(self.file_explorer.clone(), chunks[0]);
+        f.render_widget(self.code_viewer.clone(), chunks[1]);
+        f.render_widget(self.ai_chat.clone(), chunks[2]);
     }
 
     fn handle_key_events(&mut self, key_event: crossterm::event::KeyEvent) -> Result<()> {
@@ -120,27 +157,28 @@ impl StudioApp {
                 // Cycle between UI states
                 self.cycle_ui_state();
             }
-            crossterm::event::KeyCode::Down => {
-                match self.ui_state {
-                    UIState::FileExplorer => self.file_explorer.next(),
-                    _ => {}
-                }
-            }
-            crossterm::event::KeyCode::Up => {
-                match self.ui_state {
-                    UIState::FileExplorer => self.file_explorer.previous(),
-                    _ => {}
-                }
-            }
+            crossterm::event::KeyCode::Down => match self.ui_state {
+                UIState::FileExplorer => self.file_explorer.next(),
+                _ => {}
+            },
+            crossterm::event::KeyCode::Up => match self.ui_state {
+                UIState::FileExplorer => self.file_explorer.previous(),
+                _ => {}
+            },
             crossterm::event::KeyCode::Enter => {
                 // For now, just simulate loading file content
                 if let UIState::FileExplorer = self.ui_state {
                     self.ai_chat.add_message("File loaded!".to_string());
                 }
             }
-            crossterm::event::KeyCode::Char('a') if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            crossterm::event::KeyCode::Char('a')
+                if key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 // Analyze current file with code analyzer
-                self.ai_chat.add_message("Analyzing file with Tree-sitter...".to_string());
+                self.ai_chat
+                    .add_message("Analyzing file with Tree-sitter...".to_string());
             }
             _ => {}
         }

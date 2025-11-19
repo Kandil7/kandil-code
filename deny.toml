@@ -1,0 +1,81 @@
+# Deny.toml - Security and License Audit Configuration
+
+# Configuration for cargo-deny, a Rust dependency auditing tool
+# This enforces security and license policies for all dependencies
+
+[advisories]
+# Fetch advisory databases automatically
+db-urls = [
+    "https://github.com/rustsec/advisory-db",
+]
+db-urls-cache-dur = "30d"  # Cache advisory DB for 30 days
+
+# Advisory filtering criteria
+ignore = [
+    # List of advisory IDs to ignore (should be empty in production)
+]
+
+# Severity threshold for failures
+severity-threshold = "high"
+
+[bans]
+# Prevent duplicate versions of packages
+multiple-versions = "warn"
+
+# Ban specific crates that are known to be problematic
+deny = [
+    # Example: { name = "unmaintained-crate", versions = [">=1.0.0"] }
+]
+
+# Lint policy for wildcards in dependencies
+wildcards = "allow"
+
+# Skip certain crates in dependency resolution
+skip = []
+
+# Skip certain versions of a crate
+skip-versions = []
+
+[licenses]
+# License policy settings
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "Unicode-DFS-2016",
+    "ISC",
+    "CC0-1.0",
+    "Zlib",
+    "MPL-2.0",
+    "OpenSSL",
+]
+
+# Deny specific licenses
+deny = [
+    # Licenses that are not allowed
+]
+
+# Copyleft license handling
+copyleft = "warn"
+
+# Clarify unclear license expressions
+clarify = [
+    # Example: { name = "ring", expression = "MIT AND ISC AND OpenSSL", license-files = [] }
+]
+
+[sources]
+# Source allow/deny list
+unknown-registry = "deny"
+unknown-git = "deny"
+
+allow-git = [
+    # Trusted git sources can be added here
+]
+
+[bans.simple-regexes]
+# Regex-based ban rules for dependency patterns
+
+[bans.workspace]
+# Workspace-specific banning rules
+members = []
+external = false

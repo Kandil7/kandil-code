@@ -1,28 +1,31 @@
 //! Automated test generation
-//! 
+//!
 //! Contains functionality for generating unit and integration tests
 
 use anyhow::Result;
 use std::path::Path;
+use std::sync::Arc;
 
 pub struct TestGenerator {
-    ai_client: crate::core::adapters::ai::KandilAI,
+    ai_client: Arc<crate::core::adapters::ai::KandilAI>,
 }
 
 impl TestGenerator {
-    pub fn new(ai_client: crate::core::adapters::ai::KandilAI) -> Self {
-        Self {
-            ai_client,
-        }
+    pub fn new(ai_client: Arc<crate::core::adapters::ai::KandilAI>) -> Self {
+        Self { ai_client }
     }
 
-    pub async fn generate_tests_for_file(&self, source_file: &str, test_framework: &str) -> Result<String> {
+    pub async fn generate_tests_for_file(
+        &self,
+        source_file: &str,
+        test_framework: &str,
+    ) -> Result<String> {
         let source_code = std::fs::read_to_string(source_file)?;
         let file_ext = Path::new(source_file)
             .extension()
             .and_then(|ext| ext.to_str())
             .unwrap_or("");
-            
+
         let (language, framework) = match (file_ext, test_framework) {
             ("rs", "") | ("rs", "rust") => ("Rust", "Rust's built-in testing framework"),
             ("py", "") | ("py", "pytest") => ("Python", "pytest"),
@@ -66,10 +69,14 @@ impl TestGenerator {
         self.ai_client.chat(&prompt).await
     }
 
-    pub async fn analyze_test_coverage(&self, source_file: &str, test_file: &str) -> Result<String> {
+    pub async fn analyze_test_coverage(
+        &self,
+        source_file: &str,
+        test_file: &str,
+    ) -> Result<String> {
         let source_code = std::fs::read_to_string(source_file)?;
         let test_code = std::fs::read_to_string(test_file)?;
-        
+
         let prompt = format!(
             r#"Analyze the test coverage of the following tests:
             

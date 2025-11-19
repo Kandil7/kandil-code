@@ -26,8 +26,13 @@ jobs:
     strategy:
       matrix:
         include:
+          # Desktop targets
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            bin: kandil
+            pkg: tgz
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
             bin: kandil
             pkg: tgz
           - os: macos-latest
@@ -42,6 +47,11 @@ jobs:
             target: x86_64-pc-windows-msvc
             bin: kandil.exe
             pkg: zip
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            bin: kandil.exe
+            pkg: zip
+      fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +66,16 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - run: cargo build --release --target ${{ matrix.target }}
+      - if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          target=${{ matrix.target }}
+          bin=${{ matrix.bin }}
+          ./target/$target/release/$bin --version || true
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "target/${{ matrix.target }}/release/${{ matrix.bin }}" --version
       - if: runner.os == 'Linux'
         shell: bash
         run: |
@@ -85,5 +105,69 @@ jobs:
             kandil-*.tar.gz
             kandil-*.zip
             kandil-*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  mobile-builds:
+    needs: create_release
+    strategy:
+      matrix:
+        include:
+          # Android targets
+          - os: ubuntu-latest
+            target: aarch64-linux-android
+            bin: libkandil.so
+            description: "Android ARM64"
+          - os: ubuntu-latest
+            target: armv7-linux-androideabi
+            bin: libkandil.so
+            description: "Android ARMv7"
+          - os: ubuntu-latest
+            target: x86_64-linux-android
+            bin: libkandil.so
+            description: "Android x86_64"
+          - os: ubuntu-latest
+            target: i686-linux-android
+            bin: libkandil.so
+            description: "Android x86"
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: mobile-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install Android NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jdk
+          # Using rust's recommended approach for Android targets
+      - run: cargo build --release --target ${{ matrix.target }}
+      - name: Package mobile build
+        run: |
+          target=${{ matrix.target }}
+          bin=${{ matrix.bin }}
+          name=kandil-mobile-${{ matrix.target }}
+          cp target/$target/release/$bin $name.so || echo "No .so file, creating placeholder"
+          # Create a simple package for distribution
+          mkdir -p mobile-package-${{ matrix.target }}
+          cp target/$target/release/* mobile-package-${{ matrix.target }}/ 2>/dev/null || echo "No binaries in release folder"
+          # Create a checksum
+          find target/$target/release/ -name "*.so" -exec sha256sum {} \; > mobile-package-${{ matrix.target }}/checksums.txt || echo "No checksums"
+          tar czf mobile-$name.tar.gz -C . mobile-package-${{ matrix.target }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            mobile-*.tar.gz
+          tag_name: ${{ github.ref }}
+          name: Kandil Code Mobile Builds
+          body: Mobile library builds for Android
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

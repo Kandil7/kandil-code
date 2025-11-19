@@ -1,17 +1,18 @@
 //! Enhanced Accessibility and i18n Agent
-//! 
+//!
 //! Advanced accessibility scanning and internationalization with RTL support
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct EnhancedA11yAssistant {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub wcag_standards: HashMap<String, String>,
 }
 
@@ -86,9 +87,9 @@ pub enum ImpactLevel {
     VeryHigh,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RtlSupportAssistant {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
     pub rtl_languages: Vec<String>,
 }
 
@@ -111,28 +112,60 @@ pub struct RtlIssue {
 }
 
 impl EnhancedA11yAssistant {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         let mut wcag_standards = HashMap::new();
-        
+
         // Add comprehensive WCAG standards
-        wcag_standards.insert("1.1.1".to_string(), "Non-text Content: Provide text alternative for non-text content".to_string());
-        wcag_standards.insert("1.2.1".to_string(), "Audio-only and Video-only: Provide alternatives for time-based media".to_string());
-        wcag_standards.insert("1.3.1".to_string(), "Info and Relationships: Create content that can be presented in different ways".to_string());
-        wcag_standards.insert("1.4.1".to_string(), "Use of Color: Don't use color as the only visual means of conveying information".to_string());
-        wcag_standards.insert("2.1.1".to_string(), "Keyboard: Make all functionality available from a keyboard".to_string());
-        wcag_standards.insert("2.4.1".to_string(), "Bypass Blocks: Provide ways to bypass repetitive content".to_string());
-        wcag_standards.insert("3.1.1".to_string(), "Language of Page: Provide language information for the page".to_string());
-        wcag_standards.insert("4.1.1".to_string(), "Parsing: Maximize compatibility with assistive technologies".to_string());
-        
+        wcag_standards.insert(
+            "1.1.1".to_string(),
+            "Non-text Content: Provide text alternative for non-text content".to_string(),
+        );
+        wcag_standards.insert(
+            "1.2.1".to_string(),
+            "Audio-only and Video-only: Provide alternatives for time-based media".to_string(),
+        );
+        wcag_standards.insert(
+            "1.3.1".to_string(),
+            "Info and Relationships: Create content that can be presented in different ways"
+                .to_string(),
+        );
+        wcag_standards.insert(
+            "1.4.1".to_string(),
+            "Use of Color: Don't use color as the only visual means of conveying information"
+                .to_string(),
+        );
+        wcag_standards.insert(
+            "2.1.1".to_string(),
+            "Keyboard: Make all functionality available from a keyboard".to_string(),
+        );
+        wcag_standards.insert(
+            "2.4.1".to_string(),
+            "Bypass Blocks: Provide ways to bypass repetitive content".to_string(),
+        );
+        wcag_standards.insert(
+            "3.1.1".to_string(),
+            "Language of Page: Provide language information for the page".to_string(),
+        );
+        wcag_standards.insert(
+            "4.1.1".to_string(),
+            "Parsing: Maximize compatibility with assistive technologies".to_string(),
+        );
+
         // Add AAA level standards
-        wcag_standards.insert("1.2.8".to_string(), "Media Alternative (Prerecorded): Provide alternative for time-based media".to_string());
-        wcag_standards.insert("1.4.6".to_string(), "Contrast (Enhanced): Provide enhanced contrast for text".to_string());
-        wcag_standards.insert("2.2.4".to_string(), "Interruptions: Allow users to suppress interruptions".to_string());
-        
-        Self {
-            ai,
-            wcag_standards,
-        }
+        wcag_standards.insert(
+            "1.2.8".to_string(),
+            "Media Alternative (Prerecorded): Provide alternative for time-based media".to_string(),
+        );
+        wcag_standards.insert(
+            "1.4.6".to_string(),
+            "Contrast (Enhanced): Provide enhanced contrast for text".to_string(),
+        );
+        wcag_standards.insert(
+            "2.2.4".to_string(),
+            "Interruptions: Allow users to suppress interruptions".to_string(),
+        );
+
+        Self { ai, wcag_standards }
     }
 
     pub async fn comprehensive_wcag_audit(&self, content: &str) -> Result<WcagReport> {
@@ -152,65 +185,57 @@ impl EnhancedA11yAssistant {
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         // For simulation, return basic report
         Ok(WcagReport {
-            level_a_issues: vec![
-                WcagIssue {
-                    id: "A11Y-A-001".to_string(),
-                    level: WcagLevel::A,
-                    guideline_id: "1.1.1".to_string(),
-                    description: "Missing alt text on image".to_string(),
-                    element: "img".to_string(),
-                    severity: Severity::High,
-                    location: Some("line 45".to_string()),
-                    remediation: "Add descriptive alt attribute".to_string(),
-                    code_example: Some("<img src='pic.jpg' alt='Descriptive text'>".to_string()),
-                }
-            ],
-            level_aa_issues: vec![
-                WcagIssue {
-                    id: "A11Y-AA-001".to_string(),
-                    level: WcagLevel::AA,
-                    guideline_id: "1.4.3".to_string(),
-                    description: "Insufficient color contrast".to_string(),
-                    element: "button".to_string(),
-                    severity: Severity::Medium,
-                    location: Some("line 120".to_string()),
-                    remediation: "Improve color contrast ratio".to_string(),
-                    code_example: Some("color: #000000; background-color: #ffffff;".to_string()),
-                }
-            ],
-            level_aaa_issues: vec![
-                WcagIssue {
-                    id: "A11Y-AAA-001".to_string(),
-                    level: WcagLevel::AAA,
-                    guideline_id: "1.4.6".to_string(),
-                    description: "Contrast ratio not enhanced".to_string(),
-                    element: "text".to_string(),
-                    severity: Severity::Low,
-                    location: Some("line 200".to_string()),
-                    remediation: "Use enhanced contrast colors".to_string(),
-                    code_example: Some("color: #000000; background-color: #ffffff;".to_string()),
-                }
-            ],
+            level_a_issues: vec![WcagIssue {
+                id: "A11Y-A-001".to_string(),
+                level: WcagLevel::A,
+                guideline_id: "1.1.1".to_string(),
+                description: "Missing alt text on image".to_string(),
+                element: "img".to_string(),
+                severity: Severity::High,
+                location: Some("line 45".to_string()),
+                remediation: "Add descriptive alt attribute".to_string(),
+                code_example: Some("<img src='pic.jpg' alt='Descriptive text'>".to_string()),
+            }],
+            level_aa_issues: vec![WcagIssue {
+                id: "A11Y-AA-001".to_string(),
+                level: WcagLevel::AA,
+                guideline_id: "1.4.3".to_string(),
+                description: "Insufficient color contrast".to_string(),
+                element: "button".to_string(),
+                severity: Severity::Medium,
+                location: Some("line 120".to_string()),
+                remediation: "Improve color contrast ratio".to_string(),
+                code_example: Some("color: #000000; background-color: #ffffff;".to_string()),
+            }],
+            level_aaa_issues: vec![WcagIssue {
+                id: "A11Y-AAA-001".to_string(),
+                level: WcagLevel::AAA,
+                guideline_id: "1.4.6".to_string(),
+                description: "Contrast ratio not enhanced".to_string(),
+                element: "text".to_string(),
+                severity: Severity::Low,
+                location: Some("line 200".to_string()),
+                remediation: "Use enhanced contrast colors".to_string(),
+                code_example: Some("color: #000000; background-color: #ffffff;".to_string()),
+            }],
             compliance_summary: ComplianceSummary {
                 level_a_compliance: 95.0,
                 level_aa_compliance: 85.0,
                 level_aaa_compliance: 60.0,
                 overall_score: 80,
             },
-            recommendations: vec![
-                AccessibilityRecommendation {
-                    id: "REC-001".to_string(),
-                    title: "Add skip navigation links".to_string(),
-                    description: "Add keyboard shortcuts to bypass repeated content".to_string(),
-                    priority: Priority::High,
-                    implementation_time: "30 minutes".to_string(),
-                    impact_level: ImpactLevel::High,
-                }
-            ],
+            recommendations: vec![AccessibilityRecommendation {
+                id: "REC-001".to_string(),
+                title: "Add skip navigation links".to_string(),
+                description: "Add keyboard shortcuts to bypass repeated content".to_string(),
+                priority: Priority::High,
+                implementation_time: "30 minutes".to_string(),
+                impact_level: ImpactLevel::High,
+            }],
         })
     }
 
@@ -246,7 +271,7 @@ impl EnhancedA11yAssistant {
 }
 
 impl RtlSupportAssistant {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             ai,
             rtl_languages: vec![
@@ -267,7 +292,10 @@ impl RtlSupportAssistant {
 
     pub async fn analyze_rtl_support(&self, content: &str, language: &str) -> Result<RtlAnalysis> {
         if !self.rtl_languages.contains(&language.to_lowercase()) {
-            return Err(anyhow::anyhow!("Language {} is not an RTL language", language));
+            return Err(anyhow::anyhow!(
+                "Language {} is not an RTL language",
+                language
+            ));
         }
 
         let prompt = format!(
@@ -287,34 +315,36 @@ impl RtlSupportAssistant {
         );
 
         let analysis = self.ai.chat(&prompt).await?;
-        
+
         Ok(RtlAnalysis {
-            issues_found: vec![
-                RtlIssue {
-                    id: "RTL-001".to_string(),
-                    description: "Text direction not properly set".to_string(),
-                    location: "CSS/HTML".to_string(),
-                    severity: Severity::High,
-                    fix_example: "Add dir='rtl' attribute or CSS text-align".to_string(),
-                }
-            ],
+            issues_found: vec![RtlIssue {
+                id: "RTL-001".to_string(),
+                description: "Text direction not properly set".to_string(),
+                location: "CSS/HTML".to_string(),
+                severity: Severity::High,
+                fix_example: "Add dir='rtl' attribute or CSS text-align".to_string(),
+            }],
             rtl_compliance_score: 65,
             layout_recommendations: vec![
-                "Use CSS logical properties (margin-inline-start instead of margin-left)".to_string(),
+                "Use CSS logical properties (margin-inline-start instead of margin-left)"
+                    .to_string(),
                 "Test layout in RTL context".to_string(),
             ],
-            text_direction_issues: vec![
-                "Missing dir attribute".to_string(),
-            ],
-            icon_placement_issues: vec![
-                "Icons not mirrored in RTL".to_string(),
-            ],
+            text_direction_issues: vec!["Missing dir attribute".to_string()],
+            icon_placement_issues: vec!["Icons not mirrored in RTL".to_string()],
         })
     }
 
-    pub async fn generate_rtl_stylesheet(&self, base_stylesheet: &str, language: &str) -> Result<String> {
+    pub async fn generate_rtl_stylesheet(
+        &self,
+        base_stylesheet: &str,
+        language: &str,
+    ) -> Result<String> {
         if !self.rtl_languages.contains(&language.to_lowercase()) {
-            return Err(anyhow::anyhow!("Language {} is not an RTL language", language));
+            return Err(anyhow::anyhow!(
+                "Language {} is not an RTL language",
+                language
+            ));
         }
 
         let prompt = format!(
@@ -335,7 +365,10 @@ impl RtlSupportAssistant {
         self.ai.chat(&prompt).await
     }
 
-    pub async fn check_rtl_ui_components(&self, component_descriptions: &[String]) -> Result<Vec<RtlIssue>> {
+    pub async fn check_rtl_ui_components(
+        &self,
+        component_descriptions: &[String],
+    ) -> Result<Vec<RtlIssue>> {
         let prompt = format!(
             r#"Check these UI components for RTL support issues:
             {:?}
@@ -352,17 +385,15 @@ impl RtlSupportAssistant {
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         // For simulation, return basic issues
-        Ok(vec![
-            RtlIssue {
-                id: "COMP-RTL-001".to_string(),
-                description: "Component not RTL-aware".to_string(),
-                location: "Navigation".to_string(),
-                severity: Severity::High,
-                fix_example: "Add RTL support to component".to_string(),
-            }
-        ])
+        Ok(vec![RtlIssue {
+            id: "COMP-RTL-001".to_string(),
+            description: "Component not RTL-aware".to_string(),
+            location: "Navigation".to_string(),
+            severity: Severity::High,
+            fix_example: "Add RTL support to component".to_string(),
+        }])
     }
 }
 
@@ -373,7 +404,7 @@ impl Agent for EnhancedA11yAssistant {
             "As an Accessibility Specialist, given this accessibility task: {}\n\nPlan the next a11y activity. Consider WCAG standards, mobile accessibility, and inclusive design.",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -383,7 +414,7 @@ impl Agent for EnhancedA11yAssistant {
             "Implement this accessibility plan: {}\n\nAudit content, fix issues, or improve accessibility compliance.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -393,7 +424,7 @@ impl Agent for EnhancedA11yAssistant {
             "Analyze these accessibility results: {}\n\nHow does this improve digital inclusion for users with disabilities?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

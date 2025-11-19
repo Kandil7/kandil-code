@@ -1,17 +1,18 @@
 //! Ethics and security scanning agent
-//! 
+//!
 //! Specialized agent for performing security audits and ethics checks
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::base::{Agent, AgentState};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use crate::core::agents::base::{Agent, AgentState, AgentResult, ReActLoop};
-use crate::core::adapters::ai::KandilAI;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityReport {
     pub vulnerabilities: Vec<Vulnerability>,
-    pub risk_score: u8,  // 0-100 risk score
+    pub risk_score: u8, // 0-100 risk score
     pub compliance_status: ComplianceStatus,
     pub summary: String,
 }
@@ -28,7 +29,7 @@ pub struct Vulnerability {
     pub cvss_score: Option<f32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Severity {
     Info,
     Low,
@@ -82,11 +83,11 @@ pub struct EthicalRisk {
 }
 
 pub struct EthicsSecurityAgent {
-    ai: KandilAI,
+    ai: Arc<KandilAI>,
 }
 
 impl EthicsSecurityAgent {
-    pub fn new(ai: KandilAI) -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self { ai }
     }
 
@@ -109,22 +110,20 @@ impl EthicsSecurityAgent {
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         // In a real implementation, this would parse the structured response
         // For now, we'll return a basic report
         Ok(SecurityReport {
-            vulnerabilities: vec![
-                Vulnerability {
-                    id: "SEC-001".to_string(),
-                    title: "SQL Injection".to_string(),
-                    description: "Potential SQL injection vulnerability found".to_string(),
-                    severity: Severity::High,
-                    cve_id: Some("CVE-2023-0001".to_string()),
-                    owasp_category: Some("A03:2021-Injection".to_string()),
-                    recommendation: "Use parameterized queries".to_string(),
-                    cvss_score: Some(8.5),
-                }
-            ],
+            vulnerabilities: vec![Vulnerability {
+                id: "SEC-001".to_string(),
+                title: "SQL Injection".to_string(),
+                description: "Potential SQL injection vulnerability found".to_string(),
+                severity: Severity::High,
+                cve_id: Some("CVE-2023-0001".to_string()),
+                owasp_category: Some("A03:2021-Injection".to_string()),
+                recommendation: "Use parameterized queries".to_string(),
+                cvss_score: Some(8.5),
+            }],
             risk_score: 75,
             compliance_status: ComplianceStatus {
                 owasp_api_top_10: false,
@@ -155,36 +154,30 @@ impl EthicsSecurityAgent {
         );
 
         let result = self.ai.chat(&prompt).await?;
-        
+
         // For now, we'll return a basic report
         Ok(EthicsReport {
-            bias_issues: vec![
-                BiasIssue {
-                    id: "ETH-001".to_string(),
-                    description: "Potential bias in data processing".to_string(),
-                    affected_area: "User recommendation algorithm".to_string(),
-                    severity: Severity::Medium,
-                    suggested_mitigation: "Add bias detection and mitigation measures".to_string(),
-                }
-            ],
-            privacy_concerns: vec![
-                PrivacyConcern {
-                    id: "PRIV-001".to_string(),
-                    description: "Collection of personal data without explicit consent".to_string(),
-                    data_type: "Personal Information".to_string(),
-                    risk_level: Severity::High,
-                    recommendation: "Implement data minimization and consent management".to_string(),
-                }
-            ],
-            ethical_risks: vec![
-                EthicalRisk {
-                    id: "ETH-002".to_string(),
-                    description: "Potential for algorithmic discrimination".to_string(),
-                    impact_area: "User treatment".to_string(),
-                    likelihood: "Medium".to_string(),
-                    suggested_controls: "Implement fairness checks and audit trails".to_string(),
-                }
-            ],
+            bias_issues: vec![BiasIssue {
+                id: "ETH-001".to_string(),
+                description: "Potential bias in data processing".to_string(),
+                affected_area: "User recommendation algorithm".to_string(),
+                severity: Severity::Medium,
+                suggested_mitigation: "Add bias detection and mitigation measures".to_string(),
+            }],
+            privacy_concerns: vec![PrivacyConcern {
+                id: "PRIV-001".to_string(),
+                description: "Collection of personal data without explicit consent".to_string(),
+                data_type: "Personal Information".to_string(),
+                risk_level: Severity::High,
+                recommendation: "Implement data minimization and consent management".to_string(),
+            }],
+            ethical_risks: vec![EthicalRisk {
+                id: "ETH-002".to_string(),
+                description: "Potential for algorithmic discrimination".to_string(),
+                impact_area: "User treatment".to_string(),
+                likelihood: "Medium".to_string(),
+                suggested_controls: "Implement fairness checks and audit trails".to_string(),
+            }],
             recommendations: vec![
                 "Add bias detection mechanisms".to_string(),
                 "Implement privacy-by-design principles".to_string(),
@@ -201,7 +194,7 @@ impl Agent for EthicsSecurityAgent {
             "Given this security/ethics audit task: {}\n\nPlan the next audit step. What security or ethical aspect should we focus on?",
             state.task
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -211,7 +204,7 @@ impl Agent for EthicsSecurityAgent {
             "Perform this security/ethics audit: {}\n\nAnalyze for vulnerabilities and ethical concerns, providing specific findings.",
             plan
         );
-        
+
         self.ai.chat(&prompt).await
     }
 
@@ -221,7 +214,7 @@ impl Agent for EthicsSecurityAgent {
             "Analyze these security/ethics audit results: {}\n\nWhat are the most critical risks that need to be addressed immediately?",
             result
         );
-        
+
         self.ai.chat(&prompt).await
     }
 }

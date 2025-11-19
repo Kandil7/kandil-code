@@ -1,11 +1,11 @@
 //! AI Provider Factory
-//! 
+//!
 //! Creates and manages different AI providers based on configuration
 
-use anyhow::Result;
+use super::KandilAI;
 use crate::utils::config::{Config, SecureKey};
 use crate::utils::cost_tracking::CostTracker;
-use super::KandilAI;
+use anyhow::Result;
 use std::sync::Arc;
 
 pub struct AIProviderFactory {
@@ -24,7 +24,7 @@ impl AIProviderFactory {
         // from the OS keyring and pass it to the KandilAI constructor if needed
         KandilAI::new(provider.to_string(), model.to_string())
     }
-    
+
     pub fn create_ai_with_auth(&self, provider: &str, model: &str) -> Result<KandilAI> {
         // This would be used when we need to create an AI instance with authentication
         // For cloud providers, we would load the API key securely here
@@ -32,10 +32,10 @@ impl AIProviderFactory {
             // Verify that API key exists in keyring
             let _api_key = SecureKey::load(provider)?;
         }
-        
+
         KandilAI::new(provider.to_string(), model.to_string())
     }
-    
+
     pub fn get_cost_tracker(&self) -> Arc<CostTracker> {
         self.cost_tracker.clone()
     }

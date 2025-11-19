@@ -1,13 +1,15 @@
 //! Maintenance and Monitoring Module
-//! 
+//!
 //! Ongoing maintenance, monitoring, and support for the v2.0 platform
 
+use crate::core::adapters::ai::KandilAI;
+use crate::core::agents::ethics_security::Vulnerability;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Duration;
+use std::sync::Arc;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct MaintenanceManager {
     pub health_monitor: HealthMonitor,
     pub update_scheduler: UpdateScheduler,
@@ -15,6 +17,7 @@ pub struct MaintenanceManager {
     pub issue_tracker: IssueTracker,
     pub performance_analyzer: PerformanceAnalyzer,
     pub security_monitor: SecurityMonitor,
+    pub ai: Arc<KandilAI>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,7 +221,7 @@ pub enum Status {
     Resolved,
     Closed,
     Reopened,
-    Won't Fix,
+    WontFix,
     Duplicate,
 }
 
@@ -392,7 +395,7 @@ pub enum IntelligenceLevel {
 }
 
 impl MaintenanceManager {
-    pub fn new() -> Self {
+    pub fn new(ai: Arc<KandilAI>) -> Self {
         Self {
             health_monitor: HealthMonitor {
                 checks: vec![],
@@ -410,15 +413,13 @@ impl MaintenanceManager {
                 updates: vec![],
                 schedule: HashMap::new(),
                 automatic_updates_enabled: true,
-                maintenance_windows: vec![
-                    MaintenanceWindow {
-                        start_time: "2024-01-01T02:00:00Z".to_string(),
-                        end_time: "2024-01-01T04:00:00Z".to_string(),
-                        timezone: "UTC".to_string(),
-                        recurrence: Recurrence::Weekly,
-                        allowed_updates: vec![UpdateType::BugFix, UpdateType::SecurityPatch],
-                    }
-                ],
+                maintenance_windows: vec![MaintenanceWindow {
+                    start_time: "2024-01-01T02:00:00Z".to_string(),
+                    end_time: "2024-01-01T04:00:00Z".to_string(),
+                    timezone: "UTC".to_string(),
+                    recurrence: Recurrence::Weekly,
+                    allowed_updates: vec![UpdateType::BugFix, UpdateType::SecurityPatch],
+                }],
             },
             backup_manager: BackupManager {
                 backup_configs: vec![],
@@ -464,12 +465,13 @@ impl MaintenanceManager {
                     intelligence_level: IntelligenceLevel::Standard,
                 },
             },
+            ai,
         }
     }
 
-    pub async fn run_health_checks(&mut self) -> Result<()> {
-        println!("Running system health checks...");
-        
+    pub async fn run_health_checks(&mut self, system_name: &str) -> Result<()> {
+        println!("Running system health checks for {}...", system_name);
+
         // In a real implementation, this would check actual system components
         // For simulation, we'll add mock checks
         self.health_monitor.checks = vec![
@@ -479,7 +481,9 @@ impl MaintenanceManager {
                 duration_ms: 15,
                 last_checked: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
                 dependencies: vec!["PostgreSQL".to_string()],
-                recovery_instructions: Some("Check database connectivity and credentials".to_string()),
+                recovery_instructions: Some(
+                    "Check database connectivity and credentials".to_string(),
+                ),
             },
             HealthCheck {
                 name: "AI Service Availability".to_string(),
@@ -487,7 +491,9 @@ impl MaintenanceManager {
                 duration_ms: 42,
                 last_checked: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
                 dependencies: vec!["Ollama".to_string(), "Cloud API".to_string()],
-                recovery_instructions: Some("Verify AI service is running and API keys are valid".to_string()),
+                recovery_instructions: Some(
+                    "Verify AI service is running and API keys are valid".to_string(),
+                ),
             },
             HealthCheck {
                 name: "File System Access".to_string(),
@@ -498,12 +504,15 @@ impl MaintenanceManager {
                 recovery_instructions: Some("Check disk space and permissions".to_string()),
             },
         ];
-        
+
         // Determine overall health based on individual checks
-        let unhealthy_count = self.health_monitor.checks.iter()
+        let unhealthy_count = self
+            .health_monitor
+            .checks
+            .iter()
             .filter(|c| matches!(c.status, HealthStatus::Unhealthy | HealthStatus::Degraded))
             .count();
-            
+
         self.health_monitor.overall_health = if unhealthy_count > 0 {
             if unhealthy_count > self.health_monitor.checks.len() / 2 {
                 HealthStatus::Unhealthy
@@ -513,11 +522,15 @@ impl MaintenanceManager {
         } else {
             HealthStatus::Healthy
         };
-        
-        self.health_monitor.last_check_time = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
-        
-        println!("✓ Health checks completed. Overall status: {:?}", self.health_monitor.overall_health);
-        
+
+        self.health_monitor.last_check_time =
+            chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+        println!(
+            "✓ Health checks completed. Overall status: {:?}",
+            self.health_monitor.overall_health
+        );
+
         Ok(())
     }
 
@@ -528,7 +541,7 @@ impl MaintenanceManager {
 
     pub async fn run_performance_analysis(&mut self) -> Result<()> {
         println!("Running performance analysis...");
-        
+
         // In a real implementation, this would collect actual performance metrics
         // For simulation, we'll add mock metrics
         self.performance_analyzer.metrics = vec![
@@ -554,7 +567,7 @@ impl MaintenanceManager {
                 source: "system_monitor".to_string(),
             },
         ];
-        
+
         // Analyze trends
         for metric in &self.performance_analyzer.metrics {
             let trend = if metric.current_value > 75.0 {
@@ -564,17 +577,20 @@ impl MaintenanceManager {
             } else {
                 TrendDirection::Stable
             };
-            
-            self.performance_analyzer.trends.short_term.insert(metric.name.clone(), trend);
+
+            self.performance_analyzer
+                .trends
+                .short_term
+                .insert(metric.name.clone(), trend);
         }
-        
+
         println!("✓ Performance analysis completed");
         Ok(())
     }
 
     pub async fn run_security_scan(&mut self) -> Result<()> {
         println!("Running security scan...");
-        
+
         // In a real implementation, this would run actual security scanning tools
         // For simulation, add mock scan results
         let scan = SecurityScan {
@@ -583,34 +599,33 @@ impl MaintenanceManager {
             status: ScanStatus::Completed,
             start_time: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             end_time: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-            findings: vec![
-                SecurityFinding {
-                    id: "SEC-FINDING-001".to_string(),
-                    severity: Priority::Medium,
-                    title: "Outdated dependency".to_string(),
-                    description: "Dependency 'old-lib' version 1.2.3 has known vulnerabilities".to_string(),
-                    remediation: "Update to version 1.3.5 or higher".to_string(),
-                    cvss_score: Some(6.5),
-                    cve_id: Some("CVE-2023-1234".to_string()),
-                }
-            ],
+            findings: vec![SecurityFinding {
+                id: "SEC-FINDING-001".to_string(),
+                severity: Priority::Medium,
+                title: "Outdated dependency".to_string(),
+                description: "Dependency 'old-lib' version 1.2.3 has known vulnerabilities"
+                    .to_string(),
+                remediation: "Update to version 1.3.5 or higher".to_string(),
+                cvss_score: Some(6.5),
+                cve_id: Some("CVE-2023-1234".to_string()),
+            }],
             critical_findings: 0,
         };
-        
+
         self.security_monitor.scans.push(scan);
-        
+
         // Update vulnerabilities list
-        self.security_monitor.vulnerabilities = vec![
-            Vulnerability {
-                id: "CVE-2023-1234".to_string(),
-                package: "old-lib".to_string(),
-                severity: "medium".to_string(),
-                title: "Outdated dependency vulnerability".to_string(),
-                description: "Dependency 'old-lib' version 1.2.3 has known vulnerabilities".to_string(),
-                recommendation: "Update to version 1.3.5 or higher".to_string(),
-            }
-        ];
-        
+        self.security_monitor.vulnerabilities = vec![Vulnerability {
+            id: "CVE-2023-1234".to_string(),
+            title: "Outdated dependency vulnerability".to_string(),
+            description: "Dependency 'old-lib' version 1.2.3 has known vulnerabilities".to_string(),
+            severity: crate::core::agents::ethics_security::Severity::Medium,
+            cve_id: Some("CVE-2023-1234".to_string()),
+            owasp_category: Some("A06:2021-Vulnerable and Outdated Components".to_string()),
+            recommendation: "Update to version 1.3.5 or higher".to_string(),
+            cvss_score: Some(7.5),
+        }];
+
         println!("✓ Security scan completed");
         Ok(())
     }
@@ -650,14 +665,37 @@ impl MaintenanceManager {
 "#,
             self.health_monitor.overall_health,
             self.health_monitor.checks.len(),
-            self.health_monitor.checks.iter().filter(|c| matches!(c.status, HealthStatus::Unhealthy | HealthStatus::Degraded)).count(),
+            self.health_monitor
+                .checks
+                .iter()
+                .filter(|c| matches!(c.status, HealthStatus::Unhealthy | HealthStatus::Degraded))
+                .count(),
             self.update_scheduler.updates.len(),
             self.update_scheduler.automatic_updates_enabled,
-            self.performance_analyzer.metrics.iter().find(|m| m.name == "response_time_avg").map(|m| m.current_value).unwrap_or(0.0),
-            self.performance_analyzer.metrics.iter().find(|m| m.name == "cpu_usage").map(|m| m.current_value).unwrap_or(0.0),
-            self.performance_analyzer.metrics.iter().find(|m| m.name == "memory_usage").map(|m| m.current_value).unwrap_or(0.0),
+            self.performance_analyzer
+                .metrics
+                .iter()
+                .find(|m| m.name == "response_time_avg")
+                .map(|m| m.current_value)
+                .unwrap_or(0.0),
+            self.performance_analyzer
+                .metrics
+                .iter()
+                .find(|m| m.name == "cpu_usage")
+                .map(|m| m.current_value)
+                .unwrap_or(0.0),
+            self.performance_analyzer
+                .metrics
+                .iter()
+                .find(|m| m.name == "memory_usage")
+                .map(|m| m.current_value)
+                .unwrap_or(0.0),
             self.security_monitor.scans.len(),
-            self.security_monitor.scans.iter().map(|s| s.critical_findings).sum::<u32>(),
+            self.security_monitor
+                .scans
+                .iter()
+                .map(|s| s.critical_findings)
+                .sum::<u32>(),
             self.security_monitor.vulnerabilities.len(),
             self.backup_manager.backup_success_rate,
             self.backup_manager.backup_configs.len(),
@@ -666,7 +704,11 @@ impl MaintenanceManager {
             self.backup_manager.retention_policy.monthly_backups,
             self.backup_manager.retention_policy.yearly_backups,
             self.issue_tracker.issues.len(),
-            self.issue_tracker.issues.iter().filter(|i| matches!(i.status, Status::Open)).count()
+            self.issue_tracker
+                .issues
+                .iter()
+                .filter(|i| matches!(i.status, Status::Open))
+                .count()
         )
     }
 
@@ -676,12 +718,20 @@ impl MaintenanceManager {
         // - Less than 10% of performance metrics indicate issues
         // - No critical security vulnerabilities
         // - Less than 5% of scheduled backups have failed
-        
-        let health_ok = matches!(self.health_monitor.overall_health, HealthStatus::Healthy | HealthStatus::Warning);
+
+        let health_ok = matches!(
+            self.health_monitor.overall_health,
+            HealthStatus::Healthy | HealthStatus::Warning
+        );
         let performance_ok = true; // Simplified check
-        let security_ok = self.security_monitor.vulnerabilities.iter().any(|v| v.severity == "critical") == false;
+        let security_ok = self
+            .security_monitor
+            .vulnerabilities
+            .iter()
+            .any(|v| v.severity == crate::core::agents::ethics_security::Severity::Critical)
+            == false;
         let backup_ok = self.backup_manager.backup_success_rate >= 95.0;
-        
+
         health_ok && performance_ok && security_ok && backup_ok
     }
 }
